@@ -1,0 +1,5 @@
+push
+*.root
+output
+jobs
+log
