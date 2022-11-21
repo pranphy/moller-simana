@@ -12,11 +12,11 @@ output="${work_dir}/output"
 source_dir="${mydir}/pf/sft/remoll/remoll"
 
 echo "source_dir is ${source_dir}"
-nrun=100
-evt_per_run=1000000
+nrun=1000
+evt_per_run=100000
 
 #sim_id="first-$(date +%Y%m%d-%H%M%S%N)"
-sim_id="first-$(date +%Y%m%d-%H%M%S)"
+sim_id="helicoil-$(date +%Y%m%d-%H%M%S)"
 
 
 function write_macro()
