@@ -12,14 +12,13 @@ reroot="${reroot_dir}/reroot"
 
 #sim_id="helicoil-20221121-113016"
 sim_id="first-20221118-191058"
-secondary_dir="${work_dir}/output//${sim_id}/secondary/"
+secondary_dir="${work_dir}/output//${sim_id}/secondary"
 list_dir="${work_dir}/files/"
 mkdir -p ${list_dir}
 
-detno=911
 
 list_name="${list_dir}/${sim_id}-secondaries-all-files.txt"
-rm ${list_name}
+[[ -f ${list_name} ]] && echo "${list_name} exists, deleting" && rm ${list_name}
 
 ls -1 ${secondary_dir}/*.root > ${list_name}
 echo ${list_name} written

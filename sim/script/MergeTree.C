@@ -22,7 +22,7 @@ double scaleRate(1);
 long process_one(std::string fnm);
 long get_events(std::string);
 
-void SkimTree(std::string input_filename, std::string ofilename, int testRun=0, int beamGen=1){
+void MergeTree(std::string input_filename, std::string ofilename, int testRun=0, int beamGen=1){
     long nTotHits(0);
     int nFiles(0);
 
