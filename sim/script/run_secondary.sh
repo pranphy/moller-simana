@@ -22,7 +22,7 @@ pors="secondary"
 detno=911
 skimmed_primary="${output}/primary/${primary_id}/${primary_id}-skimmed-${detno}.root"
 
-nrun=100
+nrun=101
 evt_per_run=10000
 
 
@@ -67,6 +67,7 @@ cat > ${macro_filename} << EOF
 /remoll/kryptonite/list
 /process/list
 
+/remoll/seed ${seed}
 /remoll/filename ${output_name}
 
 /run/beamOn ${no_of_events}
@@ -91,12 +92,12 @@ cat > ${batch_filename} << BEOF
 #!//usr/bin/env bash
 #SBATCH --ntasks=1
 #SBATCH --job-name=${pors}-${sim_id}
-#SBATCH --output=${logdir}/log-${count}-%j.log
-#SBATCH --error=${logdir}/log-${count}-%j.log
+#SBATCH --output=${log_dir}/log-${count}-%j.log
+#SBATCH --error=${log_dir}/log-${count}-%j.log
 #SBATCH --mem-per-cpu=5000
 #SBATCH --partition=production
 #SBATCH --account=halla
-#SBATCH --time=02:20:00
+#SBATCH --time=03:20:00
 #SBATCH --exclude=farm19104,farm19105,farm19106,farm19107,farm1996,farm19101
 #
 source /site/12gev_phys/softenv.sh 2.4
