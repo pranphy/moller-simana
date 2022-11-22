@@ -44,7 +44,7 @@ cat > ${macro_filename} << EOF
 /remoll/addfield map_directory/V2U.1a.50cm.parallel.txt
 /remoll/evgen/set external
 /remoll/evgen/external/file ${skimmed_primary} 
-/remoll/evgen/external/detno ${detno}
+/remoll/evgen/external/detid ${detno}
 /remoll/evgen/external/zOffset 0.001
 
 /remoll/SD/disable_all
@@ -132,8 +132,7 @@ do
     write_sbatch ${batch_path} ${sim_id}/${pors}/${macro_name} ${num}
     echo "sbatch ${batch_path}"
     echo ""
-    #sbatch ${batch_path}
-    echo "sbatch ${batch_path}"
+    sbatch ${batch_path}
     echo ""
     sleep 1
 done
