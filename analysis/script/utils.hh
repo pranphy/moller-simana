@@ -21,18 +21,23 @@ typedef std::function<bool(RemollHit)> hitfunc;
 template<typename T>
 bool identity(T) { return true; }
 
+enum class RemIO{
+    READ=true,
+    WRITE=false,
+};
 
 class RemollData
 {
     public:
-        RemollData(std::string filename,std::string treename="T");
+        RemollData(std::string filename,std::string treename="T",RemIO p = RemIO::READ);
         ~RemollData()
         {
-            remoll_file->Close();
+            switch(rw){ case RemIO::WRITE : remoll_file->cd(); remoll_tree->Fill(); remoll_tree->Write(); default: remoll_file->Close(); }
             delete remoll_file;
         }
         std::string filename;
         std::string treename;
+        RemIO rw;
         TTree* remoll_tree;
         TFile* remoll_file;
         /* Open remoll root file and return number of events in var branch passing cut cut" */
@@ -41,15 +46,33 @@ class RemollData
 
         template <typename branchobj>
         std::vector<branchobj> get_values(std::string branchname, std::function<bool(branchobj)> passes);
+
         template <typename branchobj>
         std::vector<branchobj> get_values_alt(std::string branchname, std::function<bool(branchobj)> passes);
+
+        template<typename objtype>
+        void add_branch(std::vector<objtype>& objvec,std::string branchname);
 };
 
-RemollData::RemollData(std::string filename,std::string treename)
-    :filename(filename),treename(treename)
+RemollData::RemollData(std::string filename,std::string treename,RemIO p)
+    :filename(filename),treename(treename),rw(p)
 {
     remoll_file = new TFile(filename.c_str(),"READ");
-    remoll_tree = (TTree*) remoll_file->Get(treename.c_str());
+    switch(rw)
+    {
+        case RemIO::READ:
+            remoll_file = new TFile(filename.c_str(),"READ");
+            remoll_tree = (TTree*) remoll_file->Get(treename.c_str()); break;
+        case RemIO::WRITE:
+            remoll_file = new TFile(filename.c_str(),"RECREATE");
+            remoll_tree = new TTree(treename.c_str(), "skim tree");
+    }
+}
+
+template<typename objtype>
+void RemollData::add_branch(std::vector<objtype>& objvec,std::string branchname)
+{
+    remoll_tree->Branch(branchname.c_str(),&objvec);
 }
 
 /* Open remoll root file and return number of events in var branch passing cut cut" */

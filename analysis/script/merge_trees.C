@@ -30,14 +30,8 @@ void merge_trees(std::string filelist,std::string ofilename)
         total_hits += got_hits;
     }
 
-
-    TFile ofile = TFile(ofilename.c_str(),"RECREATE");
-    TTree otree  = TTree("T", "skim tree");
-    otree.Branch("hit", &newhit);
-    ofile.cd();
-    otree.Fill();
-    otree.Write();
-    ofile.Close();
+    RemollData ofile = RemollData(ofilename.c_str(),"T",RemIO::WRITE);
+    ofile.add_branch(newhit,"hit");
     std::cout<<"Finished writing "<<total_hits<<" to "<<ofilename<<std::endl;
 }
 
