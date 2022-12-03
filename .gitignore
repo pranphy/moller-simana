@@ -1,7 +1,37 @@
+# this project specific
 .ccls-cache/
 push
 *.root
 output
 jobs
 log
+_minted*
 sim/files
+
+# cpp
+*.o
+
+# jupyter
+.ipynb_checkpoints
+
+# ignore latex outputs
+*.aux
+*.log
+*.toc
+*.fls
+*.synctex.gz
+*.nav
+*.out
+*.snm
+*.bbl
+*.blg
+*.fdb_latexmk
+*.acn
+*.glo
+*.ist
+*.gls
+*.glg
+*.acr
+*.alg
+*.run.xml
+*.lof
