@@ -10,8 +10,6 @@
 #include "TTreeReader.h"
 #include "TTreeReaderValue.h"
 
-#include "remolltypes.hh"
-
 typedef remollGenericDetectorHit_t RemollHit;
 typedef std::vector<RemollHit> hit_list;
 typedef std::function<bool(RemollHit)> hitfunc;
