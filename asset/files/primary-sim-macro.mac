@@ -1,0 +1,28 @@
+/remoll/setgeofile geometry/mollerMother.gdml
+/remoll/parallel/setfile geometry/mollerParallel.gdml 
+/remoll/physlist/parallel/enable 
+/run/initialize
+/remoll/printgeometry true
+/remoll/addfield map_directory/V2DSg.9.75cm.parallel.txt
+/remoll/addfield map_directory/V2U.1a.50cm.parallel.txt
+/remoll/evgen/set external
+/remoll/evgen/external/file output/primary/helicoilout-911-beam.root
+/remoll/evgen/external/detid 911
+/remoll/evgen/external/zOffset 0.001
+
+/remoll/SD/disable_all
+/remoll/SD/enable 911
+/remoll/SD/detect lowenergyneutral 911
+/remoll/SD/detect secondaries 911
+/remoll/SD/detect boundaryhits 911
+
+/remoll/kryptonite/enable
+/remoll/kryptonite/add VacuumKryptonite
+/remoll/kryptonite/add Tungsten
+/remoll/kryptonite/add Copper
+/remoll/kryptonite/add Lead
+/remoll/kryptonite/add CW95
+/remoll/kryptonite/list
+/process/list
+/remoll/filename output/secondary/helicoil-911-100000.root
+/run/beamOn 100000
