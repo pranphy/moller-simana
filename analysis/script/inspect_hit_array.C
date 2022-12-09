@@ -1,14 +1,14 @@
 #include <iostream>
+#include <fstream>
 
 #include "TFile.h"
 #include "TTreeReader.h"
+
 #include "utils.hh"
 
-//#include "remolltypes.hh"
-//#include "remollGenericDetectorHit.hh"
-//
 typedef std::vector<float> ratevec;
 typedef std::vector<hit_list> hitveclist;
+
 struct filestat {
   unsigned long evtread = 0;
   size_t empty = 0;
