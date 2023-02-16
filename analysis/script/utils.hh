@@ -8,6 +8,7 @@
 #include "TChain.h"
 #include "TTree.h"
 #include "TH2D.h"
+#include "TLatex.h"
 
 typedef remollGenericDetectorHit_t RemollHit;
 typedef std::vector<RemollHit> hit_list;
@@ -65,22 +66,39 @@ TChain* make_chain(std::string filelist){
 }
 
 
-void fill_hist2d(TH2D* hist2d, pair_func get_xy, TTree* T, std::function<hit_list(hit_list)> lookup, std::function<bool(RemollHit)> cut, bool rateweight=false) {
+double fill_hist2d(TH2D* hist2d, pair_func get_xy, TTree* T, std::function<hit_list(hit_list)> lookup, std::function<bool(RemollHit)> cut, bool rateweight=false) {
     hit_list  *hits=0; double rate;
     T->SetBranchAddress("hit",&hits);
     T->SetBranchAddress("rate",&rate);
     int totentry = T->GetEntries();
+    double calc_rate = 0;
     for(int entry = 0; entry <= totentry; ++entry) {
         T->GetEntry(entry);
+        if(rate > 1e10) continue; // seems to me that 1e11 is the bogus rate value.
         hit_list rev_hits = lookup(*hits);
+        if(!rateweight) rate = 1;
         for(RemollHit hit: rev_hits ) {
-            if(!rateweight) rate = 1;
             auto xyp = get_xy(hit);
             double x = xyp.first; double y = xyp.second;
-            if( cut(hit) ) hist2d->Fill(x,y,rate);
+            if( cut(hit) ) {
+                calc_rate += rate;
+                hist2d->Fill(x,y,rate);
+            }
         }
     }
+    return calc_rate;
 }
+
+void show_text(std::string text, Double_t normX, Double_t normY, Double_t size = 0.04) {
+  TLatex* label = new TLatex();
+  label->SetNDC(kTRUE);
+  label->SetTextAlign(22);
+  label->SetTextSize(size);
+  label->SetTextColor(kRed);
+  label->DrawLatex(normX, normY, text.c_str());
+}
+
+
 
 void save_hist2d(TH2D* xyhist,std::string filenameop){
     //TH2F *hist = new TH2F("hist", "Example Histogram", 10, 0, 10, 10, 0, 10);
@@ -116,25 +134,4 @@ void save_hist2d(TH2D* xyhist,std::string filenameop){
     }
 }
 
-
-//void loop_content(TTree* T, TH2D* anghist, std::function<bool(RemollHit)> cut){
-//    part_list* parts=0; hit_list  *hits=0; double rate;
-//    T->SetBranchAddress("hit",&hits);
-//    T->SetBranchAddress("part",&parts);
-//    T->SetBranchAddress("rate",&rate);
-//    int totentry = T->GetEntries();
-//    for(int entry = 0; entry < totentry; ++entry) {
-//        T->GetEntry(entry);
-//        //bool passes = cut(*hits,*parts,rate);
-//        if (true) {
-//            for(auto hit: *hits){
-//                if(cut(hit)) {
-//                    double ang = atan(hit.py/hit.pz);
-//                    double zz = hit.z;
-//                    anghist->Fill(ang,zz,rate);
-//                }
-//            }
-//        }
-//    }
-//}
-}
+} // utl::
