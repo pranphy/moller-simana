@@ -25,7 +25,7 @@ class RemollData
         RemollData(std::string filename,std::string treename="T",RemIO p = RemIO::READ);
         ~RemollData()
         {
-            switch(rw){ case RemIO::WRITE : remoll_file->cd(); /*remoll_tree->Fill();*/ remoll_tree->Write(); default: remoll_file->Close(); }
+            switch(rw){ case RemIO::WRITE : remoll_tree->Write(); delete remoll_tree; default: remoll_file->Close(); }
             delete remoll_file;
         }
         std::string filename;
@@ -44,7 +44,10 @@ class RemollData
         std::vector<branchobj> get_values_alt(std::string branchname, std::function<bool(branchobj)> passes,unsigned count=0);
 
         template<typename objtype>
-        void add_branch(std::vector<objtype>& objvec,std::string branchname);
+        void add_branch(std::vector<objtype>& objvec, std::string branchname, bool leaf=false);
+
+        template<typename objtype>
+        void add_branch(objtype& obj, std::string branchname);
 };
 
 RemollData::RemollData(std::string filename,std::string treename,RemIO p)
@@ -63,10 +66,26 @@ RemollData::RemollData(std::string filename,std::string treename,RemIO p)
 }
 
 template<typename objtype>
-void RemollData::add_branch(std::vector<objtype>& objvec,std::string branchname)
+void RemollData::add_branch(std::vector<objtype>& objvec, std::string branchname, bool leaf)
 {
-    remoll_tree->Branch(branchname.c_str(), &objvec);
+    if (leaf)
+    {
+        objtype obj;
+        remoll_tree->Branch(branchname.c_str(), &obj);//, objvec.size(),0);
+        for(objtype curobj: objvec)
+        {
+            obj = curobj;
+            remoll_tree->Fill();
+        }
+    } else remoll_tree->Branch(branchname.c_str(), &objvec);
     remoll_tree->Fill(); // not really sure about this here instead of destructor.
+}
+
+template<typename objtype>
+void RemollData::add_branch(objtype& obj,std::string branchname)
+{
+    remoll_tree->Branch(branchname.c_str(),&obj);
+    remoll_tree->Fill();
 }
 
 /* Open remoll root file and return number of events in var branch passing cut cut" */
