@@ -18,14 +18,13 @@ struct RemollTree {
     double cur_rate;
     int cur_entry;
     int totentries;
+    RemollHitPartRate hitpartrate;
 
     RemollTree()=delete;
     RemollTree(std::string);
     RemollTree(TTree* T);
     int loop_init();
     bool next();
-
-
 };
 
 RemollTree::RemollTree(TTree* tree):T(tree) {
@@ -40,6 +39,7 @@ int RemollTree::loop_init(){
     T->SetBranchAddress("part",&cur_parts);
     T->SetBranchAddress("rate",&cur_rate);
     totentries = T->GetEntries();
+    cur_entry = 0;
     return totentries;
 }
 
@@ -47,6 +47,7 @@ bool RemollTree::next(){
     if(cur_entry < totentries){
         T->GetEntry(cur_entry);
         ++cur_entry;
+        hitpartrate = std::make_tuple(*cur_hits,*cur_parts,cur_rate);
         return true;
     }
    return false;
