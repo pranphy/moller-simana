@@ -1,0 +1,263 @@
+% Author : Prakash Gautam
+% Date   : 11-03-2021 22:21:02
+% vim: ai ts=4 sts=4 et sw=4 ft=tex
+
+\documentclass[aspectratio=1610]{beamer}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{hyperref}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{minted}
+\usepackage{verbatim}
+%\usepackage{glossaries}
+\usepackage{xcolor}
+\usepackage{color}
+\usepackage{listings}
+%\usepackage{algorithm2e}
+\usepackage{tikz}
+\usepackage[normalem]{ulem}
+
+\usepackage{beamerthemesplit}
+\usepackage{appendixnumberbeamer}
+\usetheme{Madrid}
+\usemintedstyle{gruvbox-dark}
+
+\graphicspath{{../../asset}}
+
+4
+\definecolor{mygray}{rgb}{0.1,0.1,0.1}
+\lstset{%
+    basicstyle=\ttfamily,
+    breaklines = true,
+    backgroundcolor=\color{mygray},
+}
+\newcommand{\code}[1]{\lstinline|#1|}
+
+%\usetheme{Drexel}
+\setbeamertemplate{navigation symbols}[default]
+
+
+\useinnertheme{rectangles}
+
+%\pgfpagesuselayout{4 on 1}[letterpaper,landscape,border shrink=5mm]
+%\usecolortheme{beaver}
+
+%\input{DrexelColour.tex}
+\input{UVaDarkColour.tex}
+%\input{DarkColour.tex}
+%\input{DrexelStyle.tex}
+\beamertemplatenavigationsymbolsempty
+%\usefonttheme{professionalfonts} %mkes math fonts original
+
+%\makeglossaries
+%\input{EXOAcronyms.tex}
+
+%\title{Lightmap correction on ${}^{232}$Th with Chroma simulation for non ideal detector.}
+%\title[Chroma Simulation]{Modified distribution function for chroma simulation.}
+\title{Lintel Position Update}
+\author[P. Gautam]{Prakash Gautam}
+\institute[UVa]{}
+
+\titlegraphic{%
+    %\hfill
+    \includegraphics[height=1.1cm]{/home/pranphy/Downloads/university-of-virginia-logo.png}%
+    %\hfill%
+    %\includegraphics[height=1cm]{EXO_logo.pdf}%
+}
+
+\date{Spectrometer Meeting \\ \today}
+\subject{Physics}
+
+\begin{document}
+
+
+\begin{frame}
+\titlepage
+\end{frame}
+%
+\begin{frame}{Changes}
+    \begin{itemize}
+        \item Lintels moved to 9643.99mm, was originally at 9507.30mm ($\Delta L = 136.69$mm)
+        \item Also moved 6.83mm radially outward, ($\Delta L \cdot 50$mrad = 6.83mm).
+        \item The overlapping bulkhead not included in the simulation.
+    \end{itemize}
+        \includegraphics[width=0.98\linewidth]{image/lintel/geometry/moved-lintel-hybrid-center-overview.png}
+\end{frame}
+%
+%
+\begin{frame}{Lintel Positions}
+    \begin{columns}
+        \begin{column}{0.39\textwidth}
+            \includegraphics[width=1.18\linewidth]{image/lintel/geometry/one-slice-full-plot.pdf}
+            \begin{itemize}
+                \item Red outline shows half of one lintel.
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.59\textwidth}
+            \begin{figure}
+                \centering
+                \scalebox{0.7}{
+                \begin{tikzpicture}
+                    \node [inner sep=0pt] (image) at (0,0) {\includegraphics[width=0.88\linewidth]{image/lintel/geometry/top-view-all-lintels.png}};
+                    \draw [red, line width=2pt] (-3.5,1) rectangle (-1,0);
+                \end{tikzpicture}
+                }
+            \end{figure}
+            \begin{itemize}
+                \item Red outline shows viewport of plots shown in subsequent slides.
+            \end{itemize}
+        \end{column}
+    \end{columns}
+\end{frame}
+%
+%
+\section{With Lintels}
+%
+%
+%
+\begin{frame}{Hit Distribution: With Lintels}
+    \begin{columns}
+        \begin{column}{0.39\textwidth}
+            \begin{itemize}
+                \item Without Lintel at downstream plane of Lintel.
+                \item Integrated Rate = 265.52 GHz.
+                \item Red outline shows the lintel position.
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.59\textwidth}
+          \only<1>{\includegraphics[width=0.88\linewidth]{image/lintel/plot-proper-rate-202302191439-weight-yes-lintel-no-67-normal-ring-0.pdf}}
+        \end{column}
+    \end{columns}
+\end{frame}
+%
+%
+%
+%
+\begin{frame}{Hit Distribution: With Lintels}
+    \begin{columns}
+        \begin{column}{0.39\textwidth}
+            \begin{itemize}
+                \item WITH Lintel at downstream plane of Lintel.
+                \item Integrated Rate = 251.36 GHz.
+                \item Red outline shows the lintel position.
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.59\textwidth}
+          \only<1>{\includegraphics[width=0.88\linewidth]{image/lintel/plot-proper-rate-202302191439-weight-yes-lintel-yes-67-normal-ring-0.pdf}}
+        \end{column}
+    \end{columns}
+\end{frame}
+%
+%
+%
+%
+\begin{frame}{Hit Distribution}
+    \begin{columns}
+        \begin{column}{0.39\textwidth}
+            \begin{itemize}
+                \item WITH Lintel at downstream plane of Lintel.
+                \item The event position at lintel plane, for the events that go onto hit all rings of MD.
+                \item Integrated Rate = 134.140GHz
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.59\textwidth}
+          \only<1>{\includegraphics[width=0.88\linewidth]{image/lintel/plot-proper-rate-202302191439-weight-yes-lintel-yes-67-reverse-ring-0.pdf}}
+        \end{column}
+    \end{columns}
+\end{frame}
+%
+%
+%
+%
+%
+\begin{frame}{Hit Distribution: With Lintels}
+    \begin{columns}
+        \begin{column}{0.39\textwidth}
+            \begin{itemize}
+                \item WITH Lintel at downstream plane of Lintel.
+                \item The event position at lintel plane, for the events that go onto hit ring 5 of MD.
+                \item Integrated Rate = 111.759GHz
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.59\textwidth}
+          \only<1>{\includegraphics[width=0.88\linewidth]{image/lintel/plot-proper-rate-202302191439-weight-yes-lintel-yes-67-reverse-ring-5.pdf}}
+        \end{column}
+    \end{columns}
+\end{frame}
+%
+\section{Without Lintels}
+%
+%
+\begin{frame}{Hit Distribution: Without Lintels}
+    \begin{columns}
+        \begin{column}{0.39\textwidth}
+            \begin{itemize}
+                \item Without Lintel at downstream plane of Lintel.
+                \item Integrated Rate = 263.528 GHz.
+                \item Red outline shows the lintel position.
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.59\textwidth}
+          \only<1>{\includegraphics[width=0.88\linewidth]{image/lintel/plot-proper-rate-202302191439-weight-yes-lintel-no-67-normal-ring-0.pdf}}
+        \end{column}
+    \end{columns}
+\end{frame}
+%
+%
+%
+%
+%
+\begin{frame}{Hit Distribution: Without Lintels}
+    \begin{columns}
+        \begin{column}{0.39\textwidth}
+            \begin{itemize}
+                \item WITHOUT Lintel at downstream plane of Lintel.
+                \item The event position at lintel plane, for the events that go onto hit all rings of MD.
+                \item Integrated Rate = 135.569GHz
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.59\textwidth}
+          \only<1>{\includegraphics[width=0.88\linewidth]{image/lintel/plot-proper-rate-202302191439-weight-yes-lintel-no-67-reverse-ring-0.pdf}}
+        \end{column}
+    \end{columns}
+\end{frame}
+%
+%
+%
+%
+%
+\begin{frame}{Hit Distribution: Without Lintels}
+    \begin{columns}
+        \begin{column}{0.39\textwidth}
+            \begin{itemize}
+                \item WITHOUT Lintel at downstream plane of Lintel.
+                \item The event position at lintel plane, for the events that go onto hit ring 5 of MD.
+                \item Integrated Rate = 112.844GHz
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.59\textwidth}
+          \only<1>{\includegraphics[width=0.88\linewidth]{image/lintel/plot-proper-rate-202302191439-weight-yes-lintel-no-67-reverse-ring-5.pdf}}
+        \end{column}
+    \end{columns}
+\end{frame}
+%
+%
+\begin{frame}{Momentum Angle Distribution: Without Lintels}
+    \begin{columns}
+        \begin{column}{0.39\textwidth}
+            \begin{itemize}
+                \item Angular distribution at the lintel plane.
+                \item Mean slightly larger than 50mrad. ($\mu = 53.43, \sigma = 4.61$)
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.59\textwidth}
+            \includegraphics[width=0.88\linewidth]{image/lintel/julia-ang-normalized-LX.png}
+        \end{column}
+    \end{columns}
+\end{frame}
+%
+%
+\end{document}
+
+
