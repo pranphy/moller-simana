@@ -54,12 +54,12 @@ bool det_pid_cut(T obj,int det, int pid) {
     return obj.det == det && (obj.pid == pid || obj.pid == -pid);
 }
 
-TChain* make_chain(std::string filelist){
+TChain* make_chain(std::string filelist,bool verbose=false){
     std::ifstream flist(filelist);
     std::string filename;
     TChain* TC = new TChain("T");
     while(std::getline(flist,filename)){
-        std::cout<<"Adding "<<filename<<std::endl;
+        if(verbose) std::cout<<"Adding "<<filename<<std::endl;
         TC->Add(filename.c_str());
     }
     return TC;
@@ -74,17 +74,20 @@ double fill_hist2d(TH2D* hist2d, pair_func get_xy, TTree* T, std::function<hit_l
     double calc_rate = 0;
     for(int entry = 0; entry <= totentry; ++entry) {
         T->GetEntry(entry);
-        if(rate > 1e10) continue; // seems to me that 1e11 is the bogus rate value.
+        //if(rate > 1e10) continue; // seems to me that 1e11 is the bogus rate value.
         hit_list rev_hits = lookup(*hits);
         if(!rateweight) rate = 1;
+        bool flag = false;
         for(RemollHit hit: rev_hits ) {
             auto xyp = get_xy(hit);
             double x = xyp.first; double y = xyp.second;
             if( cut(hit) ) {
+                flag = true;
                 calc_rate += rate;
                 hist2d->Fill(x,y,rate);
             }
         }
+        //if(flag) calc_rate += rate;
     }
     return calc_rate;
 }
