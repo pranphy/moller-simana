@@ -30,9 +30,10 @@ auto curry(Function function, Arguments... args) {
 }
 */
 namespace PID {
-    const int ELECTRON = 11;
-    const int PHOTON   = 22;
-    const int PROTON   = 2212;
+    const int ELECTRON =  11;
+    const int POSITRON = -11;
+    const int PHOTON   =  22;
+    const int PROTON   =  2212;
 }
 
 namespace DETID {
@@ -54,11 +55,14 @@ bool det_pid_cut(T obj,int det, int pid) {
     return obj.det == det && (obj.pid == pid || obj.pid == -pid);
 }
 
-TChain* make_chain(std::string filelist,bool verbose=false){
+TChain* make_chain(std::string filelist,int nof = 0,bool verbose=false){
     std::ifstream flist(filelist);
     std::string filename;
     TChain* TC = new TChain("T");
+    int cnt = 0;
     while(std::getline(flist,filename)){
+        if(++cnt > nof && nof > 0)  break;
+        if(filename.length()<2) continue;
         if(verbose) std::cout<<"Adding "<<filename<<std::endl;
         TC->Add(filename.c_str());
     }
@@ -91,6 +95,14 @@ double fill_hist2d(TH2D* hist2d, pair_func get_xy, TTree* T, std::function<hit_l
     }
     return calc_rate;
 }
+
+double to_degree(double a) { return a*180/3.141592653589;}
+
+template <typename T> bool has_pid(std::vector<T> hits, int pid) {
+    return hits.end() != std::find_if(hits.begin(),hits.end(),[&](RemollHit hit)->bool{ return hit.pid == pid;});
+}
+bool has_electron(hit_list hits) { return has_pid(hits,PID::ELECTRON) || has_pid(hits,PID::POSITRON); }
+bool has_proton(hit_list hits) { return has_pid(hits,PID::PROTON) ; }
 
 void show_text(std::string text, Double_t normX, Double_t normY, Double_t size = 0.04) {
   TLatex* label = new TLatex();
