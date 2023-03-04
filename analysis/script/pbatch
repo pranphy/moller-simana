@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# -*- coding: utf-8 -*-
+# vim: ai ts=4 sts=4 et sw=4 ft=sh
+# author : Prakash [प्रकाश]
+# date   : 2023-03-03 11:12
+
+script=${1}
+filelist=${2}
+job_id=${3:-"unnamed-$(date +%Y%m%d-%H%M%S)"}
+opdir=${4:-"sim/output/${job_id}"}
+
+
+exec="reroot -b -q -l "
+
+mkdir -p "log/${job_id}/"
+mkdir -p "jobs/${job_id}/"
+mkdir -p "${opdir}"
+
+function run_batch(){
+root_filename=${1}
+output_filename=${2}
+suffix=${3}
+
+batch_filename="jobs/${job_id}/${suffix}-remoll.sh"
+cat > ${batch_filename} << EOF
+#!/usr/bin/env bash
+#SBATCH --ntasks=1
+#SBATCH --job-name=${job_id}
+#SBATCH --output=log/${job_id}/log-%j.log
+#SBATCH --error=log/${job_id}/log-%j.log
+#SBATCH --mem-per-cpu=1000
+#SBATCH --partition=priority
+#SBATCH --account=halla
+#SBATCH --time=0:01:00
+#SBATCH --exclude=farm19104,farm19105,farm19106,farm19107,farm1996,farm19101
+#
+source /site/12gev_phys/softenv.sh 2.4
+
+
+${exec} '${script}("${root_filename}","${output_filename}")'
+EOF
+
+echo "Running ${batch_filename}"
+sbatch ${batch_filename}
+}
+
+cnt=1 # Alright count from one.
+for filename in $(cat ${filelist})
+do
+    curid=$(printf "%04d" ${cnt})
+    opname="${opdir}/${job_id}_skimmed_${curid}.root"
+    run_batch ${filename} ${opname} ${curid} # cnt passed as a suffix
+    ((cnt+=1))
+done
+
