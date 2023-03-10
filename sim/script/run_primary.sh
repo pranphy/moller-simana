@@ -7,16 +7,27 @@
 
 
 mydir="/w/halla-scshelf2102/moller12gev/pgautam"
+#mydir="/tmp/test"
 work_dir="${mydir}/pf/simana/sim"
 output="${work_dir}/output"
-source_dir="${mydir}/pf/sft/remoll/remoll"
+sourcename="add-kryptonite"
+#sourcename="ryan-remoll"
+source_dir="${mydir}/pf/sft/remoll/${sourcename}"
+
+branch="lintel-update"
+#branch="develop-ryan"
+remoll="../build/${branch}/remoll" # relative to geometry
+generator="beam"
 
 echo "source_dir is ${source_dir}"
-nrun=1000
-evt_per_run=100000
+nrun=10
+evt_per_run=1000
+dets=(28 61 62 63 64 65 66 67 69 72 74 76 77 80 81 815 816)
 
 #sim_id="first-$(date +%Y%m%d-%H%M%S%N)"
-sim_id="helicoil-$(date +%Y%m%d-%H%M%S)"
+#sim_id="helicoil-$(date +%Y%m%d-%H%M%S)"
+#sim_id="test-short-20230208-155101"
+sim_id="real-assymetric-202303101616"
 
 
 function write_macro()
@@ -28,14 +39,15 @@ function write_macro()
 
 cat > ${macro_filename} << EOF
 /remoll/geometry/setfile geometry/mollerMother.gdml
-/remoll/parallel/setfile geometry/mollerParallel.gdml 
+/remoll/parallel/setfile geometry/mollerParallel.gdml
 
-/remoll/physlist/parallel/enable 
+/remoll/physlist/parallel/enable
 
 /run/initialize
 /remoll/printgeometry true
 
-/control/execute macros/load_magnetic_fieldmaps.mac
+/remoll/addfield map_directory/subcoil_2_3_3mm_real_asymmetric.txt
+/remoll/addfield map_directory/V2U.1a.50cm.parallel.real_asymmetric.txt
 
 /remoll/evgen/beam/origin 0 0 -7.5 m
 /remoll/evgen/beam/rasx 5 mm
@@ -48,7 +60,7 @@ cat > ${macro_filename} << EOF
 /remoll/beamene 11 GeV
 /remoll/beamcurr 65 microampere
 
-/remoll/evgen/set beam
+/remoll/evgen/set ${generator}
 /remoll/evgen/beamPolarization +L
 /remoll/field/equationtype 2
 /remoll/field/steppertype 2
@@ -57,13 +69,20 @@ cat > ${macro_filename} << EOF
 
 
 /remoll/SD/disable_all
+EOF
 
-/remoll/SD/enable 911
-/remoll/SD/detect lowenergyneutral 911
-/remoll/SD/detect secondaries 911
-/remoll/SD/detect boundaryhits 911
+for detno in "${dets[@]}"
+do
+cat >> ${macro_filename} << EOF
+/remoll/SD/enable ${detno}
+/remoll/SD/detect lowenergyneutral ${detno}
+/remoll/SD/detect secondaries ${detno}
+/remoll/SD/detect boundaryhits ${detno}
 
+EOF
+done
 
+cat >> ${macro_filename} << EOF
 /process/list
 /remoll/seed ${seed}
 /remoll/filename ${output_name}
@@ -81,46 +100,53 @@ function write_sbatch()
     macro_name=${2}
     count=${3}
 
-    cmd="../build/helicoil/remoll macros/${macro_name}"
+    cmd="${remoll} macros/${macro_name}"
 
-cat > ${batch_filename} << BEOF
-#!//usr/bin/env bash
+cat > ${batch_filename} << EOF
+#!/usr/bin/env bash
 #SBATCH --ntasks=1
 #SBATCH --job-name=${sim_id}
 #SBATCH --output=log/${sim_id}/log-${count}-%j.log
 #SBATCH --error=log/${sim_id}/log-${count}-%j.log
-#SBATCH --mem-per-cpu=5000
+#SBATCH --mem-per-cpu=1000
 #SBATCH --partition=production
 #SBATCH --account=halla
 #SBATCH --exclude=farm19104,farm19105,farm19106,farm19107,farm1996,farm19101
 #
 source /site/12gev_phys/softenv.sh 2.4
 
-cd ${source_dir} 
+printf 'started'
+date
+
+cd ${source_dir}
 
 ${cmd}
 
-BEOF
+printf 'ended'
+date
+
+EOF
+
 }
 
 # Start execution from here
 
 macro_dir="${source_dir}/macros/${sim_id}"
 batch_dir="${work_dir}/jobs/${sim_id}"
-log_dir="log/${sim_id}"
+log_dir="${work_dir}/log/${sim_id}"
 
-output_dir="${output}/primary/${sim_id}"
+output_dir="${output}/${sim_id}/primary"
 mkdir -p ${output_dir}
 
 mkdir -p ${macro_dir}
 mkdir -p ${batch_dir}
 mkdir -p  ${log_dir}
 
-for ((i=0; i < $nrun; i++))
+for ((i=1; i <= $nrun; i++))
 do
     num=$(printf "%04d" ${i})
 
-    output_name="${output_dir}/test-${sim_id}-${no_of_events}-${count}.root"
+    output_name="${output_dir}/${sim_id}-${evt_per_run}-${num}.root"
 
     macro_name="${sim_id}-${num}.mac"
     macro_path="${macro_dir}/${macro_name}"
