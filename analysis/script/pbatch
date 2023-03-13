@@ -5,9 +5,9 @@
 # date   : 2023-03-03 11:12
 
 script=${1}
-filelist=${2}
-job_id=${3:-"unnamed-$(date +%Y%m%d-%H%M%S)"}
-opdir=${4:-"sim/output/${job_id}"}
+filelist=${2:?"Filelist required"}
+opdir=${3:?"Output directory required"}
+job_id=${4:-"unnamed-$(date +%Y%m%d-%H%M%S)"}
 
 
 exec="reroot -b -q -l "
@@ -18,10 +18,11 @@ mkdir -p "${opdir}"
 
 function run_batch(){
 root_filename=${1}
-output_filename=${2}
-suffix=${3}
+suffix=${2}
 
+output_filename="${opdir}/${job_id}_skimmed_${curid}"
 batch_filename="jobs/${job_id}/${suffix}-remoll.sh"
+
 cat > ${batch_filename} << EOF
 #!/usr/bin/env bash
 #SBATCH --ntasks=1
@@ -47,9 +48,9 @@ sbatch ${batch_filename}
 cnt=1 # Alright count from one.
 for filename in $(cat ${filelist})
 do
-    curid=$(printf "%04d" ${cnt})
-    opname="${opdir}/${job_id}_skimmed_${curid}.root"
-    run_batch ${filename} ${opname} ${curid} # cnt passed as a suffix
+    seq="$(echo ${filename} | grep -Eo "[0-9]+"  | tail -n 1)"
+    curid="${seq}-$(printf "%04d" ${cnt})"
+    run_batch ${filename} ${curid} # cnt passed as a suffix
     ((cnt+=1))
 done
 

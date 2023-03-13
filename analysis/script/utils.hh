@@ -56,7 +56,7 @@ bool md_ring_cut(RemollHit hit, int ring = 0){
     else if(ring == 4) {rmin = 800; rmax = 920; }
     else if(ring == 5) {rmin = 920; rmax = 1060; }
     else if(ring == 6) {rmin = 1060; rmax = 1160; }
-    return (hit.r > rmin+offset) && (hit.r <= rmax+offset);
+    return (hit.det == DETID::MD) && (hit.r > rmin+offset) && (hit.r <= rmax+offset);
 }
 
 
@@ -71,6 +71,12 @@ bool pid_cut(T obj){return obj.pid == pid; }
 template <typename T>
 bool det_pid_cut(T obj,int det, int pid) {
     return obj.det == det && (obj.pid == pid || obj.pid == -pid);
+}
+
+TTree* get_tree(std::string filename,const std::string treename="T"){
+    TFile* F = new TFile(filename.c_str());
+    TTree* T = F->Get<TTree>(treename.c_str());
+    return T;
 }
 
 TChain* make_chain(std::string filelist,int nof = 0, bool verbose=false){
@@ -108,13 +114,13 @@ void make_rectangle(TCanvas* canvas,std::vector<float>& box,int color=kRed, int 
     canvas->Update();
 }
 
-void show_text(std::string text, Double_t normX, Double_t normY, int color=kRed, Double_t size = 0.04) {
+void show_text(std::string text, Double_t normx, Double_t normy, int color=kRed, Double_t size = 0.04) {
   TLatex* label = new TLatex();
   label->SetNDC(kTRUE);
   label->SetTextAlign(22);
   label->SetTextSize(size);
   label->SetTextColor(color);
-  label->DrawLatex(normX, normY, text.c_str());
+  label->DrawLatex(normx, normy, text.c_str());
 }
 
 // C++ Helpers
@@ -139,6 +145,7 @@ void println(std::vector<T> container, std::string formatter="%8.1f, "){
 
 // General utilities
 
+double hypot(double x, double y) { return sqrt(x*x + y*y); };
 double to_degree(double a) { return a*180/3.141592653589;}
 
 } // utl::
