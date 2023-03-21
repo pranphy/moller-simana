@@ -20,7 +20,7 @@ function run_batch(){
 root_filename=${1}
 suffix=${2}
 
-output_filename="${opdir}/${job_id}_skimmed_${curid}"
+output_filename="${opdir}/${job_id}_skimmed_${suffix}"
 batch_filename="jobs/${job_id}/${suffix}-remoll.sh"
 
 cat > ${batch_filename} << EOF
@@ -30,12 +30,14 @@ cat > ${batch_filename} << EOF
 #SBATCH --output=log/${job_id}/log-%j.log
 #SBATCH --error=log/${job_id}/log-%j.log
 #SBATCH --mem-per-cpu=1000
-#SBATCH --partition=priority
+#SBATCH --partition=production
 #SBATCH --account=halla
-#SBATCH --time=0:01:00
+#SBATCH --time=0:03:00
 #SBATCH --exclude=farm19104,farm19105,farm19106,farm19107,farm1996,farm19101
 #
 source /site/12gev_phys/softenv.sh 2.4
+
+ROOT_INCLUDE_DIR="analysis/script:\${ROOT_INCLUDE_DIRJ}"
 
 
 ${exec} '${script}("${root_filename}","${output_filename}")'

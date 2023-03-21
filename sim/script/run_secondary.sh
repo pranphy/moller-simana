@@ -9,21 +9,27 @@
 mydir="/w/halla-scshelf2102/moller12gev/pgautam"
 work_dir="${mydir}/pf/simana/sim"
 output="${work_dir}/output"
-source_dir="${mydir}/pf/sft/remoll/remoll"
+sourcename="add-kryptonite"
+#sourcename="ryan-remoll"
+source_dir="${mydir}/pf/sft/remoll/${sourcename}"
 
+branch="lintel-update"
+#branch="develop-ryan"
+remoll="../build/${branch}/remoll" # relative to geometry
+generator="beam"
 
-primary_id="first-20221118-191058"
-sim_id="${primary_id}"
-pors="secondary"
-
-#sim_id="first-$(date +%Y%m%d-%H%M%S%N)"
-#sim_id="helicoil-$(date +%Y%m%d-%H%M%S)"
-#
-detno=911
-skimmed_primary="${output}/primary/${primary_id}/${primary_id}-skimmed-${detno}.root"
-
-nrun=101
+echo "source_dir is ${source_dir}"
+nrun=200
 evt_per_run=10000
+dets=(28 61 62 63 64 65 66 67 69 72 74 76 77 80 81 815 816 817)
+
+
+primary_id="real-assymetric-202303101758"
+sim_id="${primary_id}"
+pors="secondary" # primary or secondary
+skimmed_primary_d="${output}/${primary_id}/primary/skim/merged/skim-around-coll-6a-202303141809.root"
+
+skimmed_primary=${1:-"${skimmed_primary_d}"}
 
 
 function write_macro()
@@ -34,37 +40,39 @@ function write_macro()
     seed=${4}
 
 cat > ${macro_filename} << EOF
+/remoll/geometry/setfile geometry/mollerMother.gdml
+/remoll/parallel/setfile geometry/mollerParallel.gdml
 
-/remoll/setgeofile geometry/mollerMother.gdml
-/remoll/parallel/setfile geometry/mollerParallel.gdml 
-/remoll/physlist/parallel/enable 
+/remoll/physlist/parallel/enable
+
 /run/initialize
 /remoll/printgeometry true
-/remoll/addfield map_directory/V2DSg.9.75cm.parallel.txt
-/remoll/addfield map_directory/V2U.1a.50cm.parallel.txt
+
+/remoll/addfield map_directory/subcoil_2_3_3mm_real_asymmetric.txt
+/remoll/addfield map_directory/V2U.1a.50cm.parallel.real_asymmetric.txt
+
 /remoll/evgen/set external
-/remoll/evgen/external/file ${skimmed_primary} 
-/remoll/evgen/external/detid ${detno}
+/remoll/evgen/external/file ${skimmed_primary}
+/remoll/evgen/external/detid 66
+/remoll/evgen/external/detid 69
 /remoll/evgen/external/zOffset 0.001
 
+
 /remoll/SD/disable_all
+EOF
+
+for detno in "${dets[@]}"
+do
+cat >> ${macro_filename} << EOF
 /remoll/SD/enable ${detno}
 /remoll/SD/detect lowenergyneutral ${detno}
 /remoll/SD/detect secondaries ${detno}
 /remoll/SD/detect boundaryhits ${detno}
 
-/remoll/SD/enable 28
-/remoll/SD/detect lowenergyneutral 28
-/remoll/SD/detect secondaries 28
-/remoll/SD/detect boundaryhits 28
+EOF
+done
 
-/remoll/kryptonite/enable
-/remoll/kryptonite/add VacuumKryptonite
-/remoll/kryptonite/add Tungsten
-/remoll/kryptonite/add Copper
-/remoll/kryptonite/add Lead
-/remoll/kryptonite/add CW95
-/remoll/kryptonite/list
+cat >> ${macro_filename} << EOF
 /process/list
 
 /remoll/seed ${seed}
@@ -83,18 +91,15 @@ function write_sbatch()
     macro_name=${2}
     count=${3}
 
-    log_dir="${work_dir}/log/${sim_id}/${pors}"
-    mkdir -p  ${log_dir}
+    cmd="${remoll} macros/${macro_name}"
 
-    cmd="../build/helicoil/remoll macros/${macro_name}"
-
-cat > ${batch_filename} << BEOF
-#!//usr/bin/env bash
+cat > ${batch_filename} << EOF
+#!/usr/bin/env bash
 #SBATCH --ntasks=1
 #SBATCH --job-name=${pors}-${sim_id}
 #SBATCH --output=${log_dir}/log-${count}-%j.log
 #SBATCH --error=${log_dir}/log-${count}-%j.log
-#SBATCH --mem-per-cpu=5000
+#SBATCH --mem-per-cpu=1000
 #SBATCH --partition=production
 #SBATCH --account=halla
 #SBATCH --time=03:20:00
@@ -102,28 +107,37 @@ cat > ${batch_filename} << BEOF
 #
 source /site/12gev_phys/softenv.sh 2.4
 
-cd ${source_dir} 
+printf 'started'
+date
+
+cd ${source_dir}
 
 ${cmd}
 
-BEOF
+printf 'ended'
+date
+
+EOF
+
 }
 
 # Start execution from here
 
 macro_dir="${source_dir}/macros/${sim_id}/${pors}"
 batch_dir="${work_dir}/jobs/${sim_id}/${pors}"
+log_dir="${work_dir}/log/${sim_id}/${pors}"
 output_dir="${output}/${sim_id}/${pors}"
 
 mkdir -p ${output_dir}
 mkdir -p ${macro_dir}
 mkdir -p ${batch_dir}
+mkdir -p ${log_dir}
 
-for ((i=1; i < $nrun; i++))
+for ((i=1; i <= $nrun; i++))
 do
     num=$(printf "%04d" ${i})
 
-    output_name="${output_dir}/test-${sim_id}-${evt_per_run}-${num}.root"
+    output_name="${output_dir}/${sim_id}-${evt_per_run}-${num}.root"
 
     macro_name="${sim_id}-${num}.mac"
     macro_path="${macro_dir}/${macro_name}"
