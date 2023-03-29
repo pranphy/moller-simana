@@ -106,20 +106,48 @@ bool has_proton(hit_list hits) { return has_pid(hits,PID::PROTON) ; }
 
 /// Graphics stuffs
 
-void make_rectangle(TCanvas* canvas,std::vector<float>& box,int color=kRed, int thickness=2,int style=2){
-    std::vector<double> x={box[0],box[0],box[1],box[1],box[0]};
-    std::vector<double> y={box[2],box[3],box[3],box[2],box[2],};
+void add_vline(double xval){
+    TLine* line = new TLine(xval, gPad->GetUymin(), xval, gPad->GetUymax());
+    line->SetLineColor(kRed);
+    line->SetLineStyle(2);
+    line->SetLineWidth(1);
+    line->Draw();
+}
+
+void add_hline(double yval){
+    TLine* line = new TLine( gPad->GetUxmin(), yval, gPad->GetUxmax(),yval);
+    line->SetLineColor(kRed);
+    line->SetLineStyle(2);
+    line->SetLineWidth(1);
+    line->Draw();
+}
+
+void draw_circle(float radius, float x = 0, float y = 0){
+    TArc* circle = new TArc(x, y, radius);
+    circle->SetLineStyle(2);
+    circle->SetLineColor(kRed);
+    circle->Draw();
+}
+
+
+void draw_polygon(TCanvas* canvas, std::vector<float>& x, std::vector<float>& y,int colour=kRed, int thickness=2,int style=2){
     TPolyLine* poly = new TPolyLine(x.size(),x.data(),y.data());
-    poly->SetLineWidth(thickness); poly->SetLineColor(color); poly->SetLineStyle(style); poly->Draw();
+    poly->SetLineWidth(thickness); poly->SetLineColor(colour); poly->SetLineStyle(style); poly->Draw();
     canvas->Update();
 }
 
-void show_text(std::string text, Double_t normx, Double_t normy, int color=kRed, Double_t size = 0.04) {
+void make_rectangle(TCanvas* canvas,std::vector<float>& box,int colour=kRed, int thickness=2,int style=2){
+    std::vector<float> x={box[0],box[0],box[1],box[1],box[0]};
+    std::vector<float> y={box[2],box[3],box[3],box[2],box[2],};
+    draw_polygon(canvas, x, y, colour, thickness, style);
+}
+
+void show_text(std::string text, Double_t normx, Double_t normy, int colour=kRed, Double_t size = 0.04) {
   TLatex* label = new TLatex();
   label->SetNDC(kTRUE);
   label->SetTextAlign(22);
   label->SetTextSize(size);
-  label->SetTextColor(color);
+  label->SetTextColor(colour);
   label->DrawLatex(normx, normy, text.c_str());
 }
 
@@ -147,6 +175,7 @@ void println(std::vector<T> container, std::string formatter="%8.1f, "){
 
 double hypot(double x, double y) { return sqrt(x*x + y*y); };
 double to_degree(double a) { return a*180/3.141592653589;}
+double to_radian(double a) { return a*3.141592653589/180;}
 
 } // utl::
 

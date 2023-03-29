@@ -69,3 +69,19 @@ bool RemollTree::next(){
 }
 
 
+/*
+   Basically I ddidn't want to rewrite  this loop over and  over again. What I found was, I was looking up
+   for each hits in an eventt. But if we only want the subset of the hit array for  the particular   event
+   then we can use the lookup function. Lookup function takes a  hit array and returns the subset of those
+   hits. User has the choice to use any cuts in lookup function. And for such subset loop through each hit
+   and use the callback function to perform the task that we want. The order of callback and lookup functions
+   is such that we can have lookup be identity function whenever we want to loop events for each hits.
+*/
+void loop_tree(RemollTree& RT, std::function<void(RemollHit)> callback, std::function<hit_list(hit_list)> lookup){
+    for(RT.loop_init(); RT.next();){
+        hit_list looked_up = lookup(*RT.cur_hits);
+        for(auto hit: looked_up){
+            callback(hit);
+        }
+    }
+}
