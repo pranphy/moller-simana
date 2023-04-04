@@ -16,6 +16,7 @@
 typedef remollGenericDetectorHit_t RemollHit;
 typedef std::vector<RemollHit> hit_list;
 typedef std::function<bool(RemollHit)> hitfunc;
+typedef std::function<bool(RemollHit)> hit_cut;
 
 typedef remollEventParticle_t RemollPart;
 typedef std::vector<RemollPart> part_list;
@@ -124,7 +125,9 @@ void add_hline(double yval){
 
 void draw_circle(float radius, float x = 0, float y = 0){
     TArc* circle = new TArc(x, y, radius);
-    circle->SetLineStyle(2);
+    circle->SetFillStyle(4001);
+    circle->SetLineStyle(1);
+    circle->SetLineWidth(3);
     circle->SetLineColor(kRed);
     circle->Draw();
 }
