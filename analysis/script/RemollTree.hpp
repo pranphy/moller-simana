@@ -68,6 +68,8 @@ bool RemollTree::next(){
    return false;
 }
 
+//hit_list identity(hit_list hits) { return hits; }
+std::function<hit_list(hit_list)> identity_lookup = [](hit_list hits)->hit_list { return hits;};
 
 /*
    Basically I ddidn't want to rewrite  this loop over and  over again. What I found was, I was looking up
@@ -77,7 +79,7 @@ bool RemollTree::next(){
    and use the callback function to perform the task that we want. The order of callback and lookup functions
    is such that we can have lookup be identity function whenever we want to loop events for each hits.
 */
-void loop_tree(RemollTree& RT, std::function<void(RemollHit)> callback, std::function<hit_list(hit_list)> lookup){
+void loop_tree(RemollTree& RT, std::function<void(RemollHit)> callback, std::function<hit_list(hit_list)> lookup=identity_lookup){
     for(RT.loop_init(); RT.next();){
         hit_list looked_up = lookup(*RT.cur_hits);
         for(auto hit: looked_up){
