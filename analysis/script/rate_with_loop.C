@@ -4,7 +4,7 @@
 typedef std::function<bool(RemollHit)> cut_func;
 
 bool ring_five(RemollHit hit){ return hit.r > 930 && hit.r < 1070;}
-bool electron_at_md(RemollHit hit){ return hit.pid == PID::ELECTRON && hit.det == DETID::MD;} // PID::ELECTRON = 11 and DETID::MD =  28
+bool electron_at_md(RemollHit hit){ return (hit.pid == PID::ELECTRON || hit.pid == PID::POSITRON) && hit.det == DETID::MD;} // PID::ELECTRON = 11 and DETID::MD =  28
 bool min_energy(RemollHit hit){ return hit.e > 1; } // 1 MeV
 bool primary_tracks(RemollHit hit){ return hit.trid == 1 || hit.trid == 2; }
 
@@ -36,7 +36,7 @@ void calc_rate_from_sim(std::string filelist,bool doublecount=false){
     TChain* files = utl::make_chain(filelist);
     int nof = files->GetListOfFiles()->GetSize();
     for (auto cut: cuts){
-        double lrate = get_rate_from_loop(files,cut,nof,doublecount);
+        double lrate = get_rate_from_loop(T,cut,nof,true);
         printf("%.3fGHz\n",lrate/1e9);
     }
 }
