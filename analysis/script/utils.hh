@@ -138,13 +138,14 @@ bool md_ring_cut(RemollHit hit, int ring = 0){
     return (hit.det == DETID::MD) && (hit.r > rmin+offset) && (hit.r <= rmax+offset);
 }
 
+/* (e) (p)lus/(m)inus cut*/
 bool epm_cut(RemollHit hit){
     return hit.pid == PID::ELECTRON || hit.pid == PID::POSITRON;
 }
 
 hit_list select_tracks(hit_list hits, std::function<bool(RemollHit)> cut){
     std::vector<int> trids;
-    std::vector<RemollHit>  rev_hits(0);
+    std::vector<RemollHit>  rev_hits;
     for(auto hit: hits){
         if(cut(hit)){
             trids.push_back(hit.trid);
@@ -200,6 +201,18 @@ bool has_pid(std::vector<T> hits, int pid) {
 
 bool has_electron(hit_list hits) { return has_pid(hits,PID::ELECTRON) || has_pid(hits,PID::POSITRON); }
 bool has_proton(hit_list hits) { return has_pid(hits,PID::PROTON) ; }
+
+// Moller Specific |> calculations
+float moller_fraction(float count, float primary){
+    float moller_per_beam = 1.0/3300.0; // we expect 1 moller per 3300 beam events.
+    float moller_number = moller_per_beam * primary;
+    return count/moller_number;
+}
+
+float moller_fraction(float count, float secondary,float skim, float primary){
+    float countdash = count/(secondary/skim);
+    return moller_fraction(countdash,primary);
+}
 
 } // utl::
 
