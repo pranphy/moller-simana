@@ -57,6 +57,11 @@ bool contains(std::vector<T>& container,const T& elem) {
 }
 
 template <typename T>
+bool is_inside(const T& x, const T& y,std::vector<T> box){
+    return (x > box[0] and x <= box[1] and y > box[2] and y <= box[3]); //box = [x0,x1, y0, y1]
+}
+
+template <typename T>
 void print(std::vector<T> container, std::string formatter="%8.1f, "){
     printf("[ ");
     std::for_each(container.begin(),container.end(),[&](T c){ printf(formatter.c_str(),c);});
@@ -75,7 +80,51 @@ double hypot(double x, double y) { return sqrt(x*x + y*y); };
 double to_degree(double a) { return a*180/3.141592653589;}
 double to_radian(double a) { return a*3.141592653589/180;}
 
+// ROOT Stuffs
+
+void save(TObject* Obj, std::string name, std::string directory="", std::string rootfile="asset/files/saved-root-objects.root"){
+    auto F = std::make_unique<TFile>(rootfile.c_str(),"UPDATE");
+    if(directory != ""){
+        TDirectory* objdir = F->GetDirectory(directory.c_str());
+        if(!objdir) objdir = F->mkdir(directory.c_str());
+        F->cd(directory.c_str());
+    }
+    Obj->Write(name.c_str());
+    F->Close();
+}
+
+template<typename T> void save(std::string treename, std::vector<T> data, std::string name, std::string directory="", std::string rootfile="asset/files/saved-root-data.root"){
+    auto F = std::make_unique<TFile>(rootfile.c_str(),"UPDATE");
+    if(directory != ""){
+        TDirectory* objdir = F->GetDirectory(directory.c_str());
+        if(!objdir) objdir = F->mkdir(directory.c_str());
+        F->cd(directory.c_str());
+    }
+
+    TTree* tree;
+    if (F->Get(treename.c_str()) == nullptr) tree = new TTree(treename.c_str(), "Data Tree");
+    else tree = dynamic_cast<TTree*>(F->Get(treename.c_str()));
+
+    T elem;
+    tree->Branch(name.c_str(), &elem);
+    F->cd();
+    for(auto dt: data) {elem = dt; tree->Fill(); }
+    F->Write();
+    F->Close();
+}
+
+template<typename T>
+void save(std::vector<T> data, std::string name, std::string directory="", std::string rootfile="asset/files/saved-root-objects.root"){
+    save("T",data,name,directory,rootfile);
+}
+
+
 /// Graphics stuffs
+void draw_line(std::vector<double> p0, std::vector<double> p1){
+    TLine* line = new TLine(p0[0],p0[1], p1[0],p1[1]);
+    line->SetLineColor(kBlue); line->SetLineColor(2); line->SetLineWidth(1);
+    line->Draw();
+}
 
 void add_vline(double xval){
     TLine* line = new TLine(xval, gPad->GetUymin(), xval, gPad->GetUymax());
@@ -95,24 +144,23 @@ void add_hline(double yval){
 
 void draw_circle(float radius, float x = 0, float y = 0){
     TArc* circle = new TArc(x, y, radius);
+    circle->SetLineColor(kRed); circle->SetLineStyle(2); circle->SetLineWidth(1);
     circle->SetFillStyle(4001);
-    circle->SetLineStyle(1);
-    circle->SetLineWidth(3);
-    circle->SetLineColor(kRed);
     circle->Draw();
 }
 
 
-void draw_polygon(TCanvas* canvas, std::vector<float>& x, std::vector<float>& y,int colour=kRed, int thickness=2,int style=2){
+template<typename T>
+void draw_polygon(std::vector<T>& x, std::vector<T>& y,int colour=kRed, int thickness=2,int style=2){
     TPolyLine* poly = new TPolyLine(x.size(),x.data(),y.data());
     poly->SetLineWidth(thickness); poly->SetLineColor(colour); poly->SetLineStyle(style); poly->Draw();
-    canvas->Update();
 }
 
-void make_rectangle(TCanvas* canvas,std::vector<float>& box,int colour=kRed, int thickness=2,int style=2){
+template<typename T>
+void make_rectangle(std::vector<T>& box,int colour=kRed, int thickness=2,int style=2){
     std::vector<float> x={box[0],box[0],box[1],box[1],box[0]};
     std::vector<float> y={box[2],box[3],box[3],box[2],box[2],};
-    draw_polygon(canvas, x, y, colour, thickness, style);
+    draw_polygon(x, y, colour, thickness, style);
 }
 
 void show_text(std::string text, Double_t normx, Double_t normy, int colour=kRed, Double_t size = 0.04) {
@@ -143,29 +191,36 @@ bool epm_cut(RemollHit hit){
     return hit.pid == PID::ELECTRON || hit.pid == PID::POSITRON;
 }
 
-hit_list select_tracks(hit_list hits, std::function<bool(RemollHit)> cut){
+bool photon_cut(RemollHit hit){ return hit.pid == PID::PHOTON; }
+
+
+namespace cut{
+    bool md_ring(RemollHit hit,int ring)  { return md_ring_cut(hit,ring); };
+    bool E1(RemollHit hit) { return hit.e > 1; }
+    bool epm(RemollHit hit) { return epm_cut(hit); }
+    bool ring5_epm(RemollHit hit){ return epm_cut(hit) and md_ring_cut(hit,5); }
+    bool ring5_epm_E1(RemollHit hit){ return ring5_epm(hit) && E1(hit); }
+    bool photon(RemollHit hit) {return photon_cut(hit); }
+    bool ring5_photon_E1(RemollHit hit) {return photon_cut(hit) and md_ring_cut(hit,5) and E1(hit); }
+}
+
+bool __pass(RemollHit) { return true; }
+
+typedef std::function<double(RemollHit)> __remhit_attrib_d;
+auto __attrib_trid = [](RemollHit hit)->double { return hit.trid; };
+
+hit_list select_tracks(hit_list hits, std::function<bool(RemollHit)> cut_s, std::function<bool(RemollHit)> cut_d = __pass, __remhit_attrib_d param=__attrib_trid){
     std::vector<int> trids;
     std::vector<RemollHit>  rev_hits;
-    for(auto hit: hits){
-        if(cut(hit)){
-            trids.push_back(hit.trid);
-        }
-    }
-    for(auto hit: hits) {
-        if(contains(trids,hit.trid) ){
-            rev_hits.push_back(hit);
-        }
-    }
+    for(auto hit: hits) if(cut_s(hit)) trids.push_back(param(hit));
+    for(auto hit: hits) if(contains(trids,hit.trid) and cut_d(hit)) rev_hits.push_back(hit);
     return rev_hits;
 }
 
-
-
-template<typename T, int trid>
-bool trid_cut(T obj) { return obj.trid == trid; }
-
-template<typename T, int pid>
-bool pid_cut(T obj){return obj.pid == pid; }
+hit_list select_mother_tracks(hit_list hits, std::function<bool(RemollHit)> cut_s, std::function<bool(RemollHit)> cut_d = __pass){
+    __remhit_attrib_d param = [](RemollHit hit)->double { return hit.mtrid; };
+    return select_tracks(hits,cut_s,cut_d,param);
+}
 
 
 template <typename T>
@@ -173,6 +228,7 @@ bool det_pid_cut(T obj,int det, int pid) {
     return obj.det == det && (obj.pid == pid || obj.pid == -pid);
 }
 
+// Remoll Data
 TTree* get_tree(std::string filename,const std::string treename="T"){
     TFile* F = new TFile(filename.c_str());
     TTree* T = F->Get<TTree>(treename.c_str());
