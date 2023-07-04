@@ -7,28 +7,23 @@
 
 
 mydir="/w/halla-scshelf2102/moller12gev/pgautam"
-#mydir="/tmp/test"
 work_dir="${mydir}/pf/simana/sim"
 output="${work_dir}/output"
-sourcename="add-kryptonite"
-#sourcename="ryan-remoll"
-source_dir="${mydir}/pf/sft/remoll/${sourcename}"
 
-branch="lintel-update"
-#branch="develop-ryan"
-remoll="../build/${branch}/remoll" # relative to geometry
+source_dir="${mydir}/pf/sft/remoll/col2/c2-ang-4.40/"
+
+map_directory="${mydir}/pf/sft/remoll/data/field_maps"
+
+remoll="../../build/fresh-develop/remoll" # relative to geometry
 generator="beam"
 
 echo "source_dir is ${source_dir}"
-nrun=10
-evt_per_run=1000
-dets=(28 61 62 63 64 65 66 67 69 72 74 76 77 80 81 815 816)
+nrun=10000
+evt_per_run=100000
+dets=(28 38 39 44 45 48 49 58 60 61 62 63 64 65 66 67 69 72 74 76 77 80 81 120 121 122 123 124 125 126 127 128 129 130 131 817 820)
+#dets=(28 66 67 69 72 74 820)
 
-#sim_id="first-$(date +%Y%m%d-%H%M%S%N)"
-#sim_id="helicoil-$(date +%Y%m%d-%H%M%S)"
-#sim_id="test-short-20230208-155101"
-sim_id="real-assymetric-202303101616"
-
+sim_id="${generator}-col2-cfg08"
 
 function write_macro()
 {
@@ -37,19 +32,23 @@ function write_macro()
     output_name=${3}
     seed=${4}
 
+#/remoll/addfield ${map_directory}/subcoil_2_3_3mm_real_asymmetric.txt
+#/remoll/addfield ${map_directory}/V2U.1a.50cm.parallel.real_asymmetric.txt
+
+
 cat > ${macro_filename} << EOF
 /remoll/geometry/setfile geometry/mollerMother.gdml
 /remoll/parallel/setfile geometry/mollerParallel.gdml
 
 /remoll/physlist/parallel/enable
-
+/run/numberOfThreads 5
 /run/initialize
 /remoll/printgeometry true
 
-/remoll/addfield map_directory/subcoil_2_3_3mm_real_asymmetric.txt
-/remoll/addfield map_directory/V2U.1a.50cm.parallel.real_asymmetric.txt
+/remoll/addfield ${map_directory}/V2U.1a.50cm.parallel.txt
+/remoll/addfield ${map_directory}/V2DSg.9.75cm.parallel.txt
 
-/remoll/evgen/beam/origin 0 0 -7.5 m
+/remoll/evgen/beam/origin 0 0 -7500 mm
 /remoll/evgen/beam/rasx 5 mm
 /remoll/evgen/beam/rasy 5 mm
 /remoll/evgen/beam/corrx 0.065
@@ -84,7 +83,7 @@ done
 
 cat >> ${macro_filename} << EOF
 /process/list
-/remoll/seed ${seed}
+/remoll/seed $(date +%s)${seed}
 /remoll/filename ${output_name}
 
 /run/beamOn ${no_of_events}
@@ -111,8 +110,8 @@ cat > ${batch_filename} << EOF
 #SBATCH --mem-per-cpu=1000
 #SBATCH --partition=production
 #SBATCH --account=halla
-#SBATCH --exclude=farm19104,farm19105,farm19106,farm19107,farm1996,farm19101
-#
+#SBATCH --time=3:55:00
+
 source /site/12gev_phys/softenv.sh 2.4
 
 printf 'started'
@@ -130,17 +129,15 @@ EOF
 }
 
 # Start execution from here
-
 macro_dir="${source_dir}/macros/${sim_id}"
 batch_dir="${work_dir}/jobs/${sim_id}"
 log_dir="${work_dir}/log/${sim_id}"
-
 output_dir="${output}/${sim_id}/primary"
-mkdir -p ${output_dir}
 
+mkdir -p ${output_dir}
 mkdir -p ${macro_dir}
 mkdir -p ${batch_dir}
-mkdir -p  ${log_dir}
+mkdir -p ${log_dir}
 
 for ((i=1; i <= $nrun; i++))
 do
@@ -157,6 +154,5 @@ do
     echo ""
     sbatch ${batch_path}
     echo ""
-    sleep 1
 done
 
