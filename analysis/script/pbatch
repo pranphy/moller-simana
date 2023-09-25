@@ -33,7 +33,6 @@ cat > ${batch_filename} << EOF
 #SBATCH --partition=production
 #SBATCH --account=halla
 #SBATCH --time=0:15:00
-#SBATCH --exclude=farm19104,farm19105,farm19106,farm19107,farm1996,farm19101
 #
 source /site/12gev_phys/softenv.sh 2.4
 
