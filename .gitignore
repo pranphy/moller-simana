@@ -7,6 +7,11 @@ jobs
 log
 _minted*
 sim/files
+_nb/
+asset
+
+# a place for testing stuff but not for committing
+_test/
 
 # cpp
 *.o
@@ -35,3 +40,5 @@ sim/files
 *.alg
 *.run.xml
 *.lof
+__doc/
+docs/__gen
