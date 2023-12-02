@@ -21,6 +21,13 @@ enum class RemIO{
     WRITE=false,
 };
 
+/**
+  @class RemollData
+  This class makes it easy to write a root file. Most of the time we have to write
+  a std::vector of any type. This class handles writing (mostly) std::vector objects to 
+  root file. The default tree name is "T" to mimick the remoll output Tree name so existing
+  scripts work as if this was remoll output root file.
+*/
 class RemollData
 {
     public:
@@ -44,10 +51,41 @@ class RemollData
         template<typename objtype>
         void add_branch(std::vector<objtype>& objvec, std::string branchname, bool leaf=true);
 
-        template<typename objtype>
-        void add_branch(objtype& obj, std::string branchname);
+        template<typename T>
+        void add_branch(T objvec, std::string branchname);
+
+        /** TODO Will have to work Later
+        template<typename... Args>
+        void add_branch(const std::vector<std::string>& branch_names, const Args&... args) {
+            const size_t n = branch_names.size();
+            std::vector<const void*> vecs = {&args...};
+            const size_t numArgs = vecs.size();
+
+            for (size_t i = 0; i < n; ++i) {
+
+                for (size_t j = 0; j < numArgs; ++j) {
+                    const auto& vec = *static_cast<const std::vector<typename std::decay<decltype(*args.begin())>::type>*>(vecs[j]);
+                    std::cout << vec[i] << " ";
+                }
+                //remoll_tree->Branch(branch_names[i].c_str(),&bobj)
+
+            }
+
+            for (size_t i = 0; i < n; ++i) {
+                std::cout << branch_names[i] << ": ";
+                for (size_t j = 0; j < numArgs; ++j) {
+                    const auto& vec = *static_cast<const std::vector<typename std::decay<decltype(*args.begin())>::type>*>(vecs[j]);
+                    std::cout << vec[i] << " ";
+                }
+                std::cout << std::endl;
+            }
+        }
+        */
+
 };
 
+/**
+*/
 RemollData::RemollData(std::string filename,std::string treename,RemIO p)
     :filename(filename),treename(treename),rw(p)
 {
@@ -65,11 +103,31 @@ RemollData::RemollData(std::string filename,std::string treename,RemIO p)
 
 RemollData::~RemollData()
 {
+    std::cout<<"Closing"<<std::endl;
     switch(rw){ case RemIO::WRITE : remoll_file->Write();  delete remoll_tree; default: remoll_file->Close(); }
     //remoll_file->Close();
     //delete remoll_file;
 }
 
+template<typename T>
+void RemollData::add_branch(T obj, std::string branchname){
+    std::cout<<"Writing again"<<std::endl;
+    remoll_tree->Branch(branchname.c_str(), &obj);
+    std::cout<<"Done writing again"<<std::endl;
+    //remoll_tree->Fill();
+    //remoll_tree->Write();
+}
+
+/**
+  Adds a branch in the root file with given branchname. This overload takes a std::vector.
+  \param objvec The std::vector of any type, which we want to write as a branch of branchname.
+  \param branchname The name of the branch in the root file we want to write.
+  \param leaf has to be true by default.
+
+  The leaf parameter was used in experimental phase, now that I discovered that it has to be 
+  true always. This basically writes the element of object element by element to mimic the
+  behaviour of remoll tree.
+  */
 template<typename objtype>
 void RemollData::add_branch(std::vector<objtype>& objvec, std::string branchname, bool leaf)
 {
@@ -87,9 +145,9 @@ void RemollData::add_branch(std::vector<objtype>& objvec, std::string branchname
     else
     {
         remoll_tree->Branch(branchname.c_str(), &objvec);
-        remoll_tree->Fill(); // not really sure about this here instead of destructor.
-        remoll_tree->Write();
+        remoll_tree->Fill();
     }
+    std::cout<<"Done writing"<<std::endl;
 }
 
 /* Open remoll root file and return number of events in var branch passing cut cut" */
