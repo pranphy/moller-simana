@@ -4,10 +4,10 @@ This contains the analysis scripts.
 You can look up \ref utils.hh files to see a bunch of functions.
 
 ## utils.hh
-This file (utils.hh) is in center of a lot of other scripts. It defines bunch of little tiny functions that are used throughout in all scripts.
+This file (utils.hh) is in center of a lot of other scripts. It defines bunch of little tiny functions that are used throughout all scripts.
 Care is taken to make sure that this runs with `c++14` and later. Because at some point I realized that the widely used version of root
-at ifarm is compiled with c++14 so some of the c++17 features don't compile. I have since staretd to use a custom root compiled with c++17
- so there might be some simple function that slipped that require c++17.
+at ifarm is compiled with c++14 so some of the `c++17` features don't compile. I have since started to use a custom root compiled with `c++17`
+ so there might be some simple function that slipped that require `c++17`.
 
 
 ## Compiled library
@@ -28,7 +28,7 @@ executable.
 ## Executing  macros
 Using `reroot` vs `root`.
 
-Imagine you have a root macro namemd `loop_tree.C`
+Imagine you have a root macro named `loop_tree.C`
 
 ```{cpp}
 void loop_tree(){
@@ -43,7 +43,7 @@ void loop_tree(){
 $ reroot -b -l -q loop_tree.C
 ```
 
- - 2. If using `root` then you need to import `libremoll.so` in the script. so your `loop_tree.C` has to be somethign like
+ - 2. If using `root` then you need to import `libremoll.so` in the script, so your `loop_tree.C` has to be something like
 ```{cpp}
 // loop_tree.C
 gSystem->Load("~/sft/remoll/build/quick-remoll/libremoll.so")
@@ -112,7 +112,7 @@ bool cut(RemollHit hit){
 }
 ```
 
-Selecting moller ring is somethign we do very very often. So there are utilities function in `utils.hh` 
+Selecting moller ring is something we do very very often. So there are utilities function in `utils.hh` 
 for selecting moller ring, so for clarity we can equivalently write this function as
 ```{cpp}
 bool cut(RemollHit hit){
@@ -145,7 +145,7 @@ the subset of events selected by the use of above two functions.
 Reading the remoll tree and looping through it, is done with RemollTree.hpp.
 
 There is \ref RemollTree.hpp, which can be used to loop through each event in the remoll output root tree "T" (there is a better way to do 
-it). Also look documentation for \ref RemollTree::loop_init and \ref RemollTree::next()
+it). Also look documentation for \ref RemollTree::loop_init() \ref RemollTree::next() and \ref RemollData::add_branch()
 
 ```{cpp}
 #include "RemollTree.hpp"
@@ -169,8 +169,6 @@ void select_subset_MD(){
         if (hits_on_md.size()  > 0) selected.push_back(hits_on_md);
     }
 
-
-    
 
     // Prepare to write an root output file with tree name "T".jK:w
     RemollData RD("Outputfilename.root","T",RemIO::WRITE);
