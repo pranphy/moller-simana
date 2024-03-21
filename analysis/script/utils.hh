@@ -27,7 +27,7 @@
     `remollGenericDetectorHit_t` which is a bit lot to remember and type. So I 
     typedefed this to RemollHit which is easy to remember
 
-    All the types are defined in remolltypes.hh file contains the 
+    All the remoll types are defined in remolltypes.hh file.
 */
 typedef remollGenericDetectorHit_t RemollHit;
 
@@ -47,7 +47,7 @@ typedef std::function<bool(RemollHit)> hit_cut;
     `remollEventParticle_t` which is a bit lot to remember and type. So I 
     typedefed this to  @ref `RemollPart` which is easy to remember
 
-    All the types are defined in remolltypes.hh file contains the 
+    All the remoll types are defined in remolltypes.hh file.
 */
 typedef remollEventParticle_t RemollPart;
 typedef std::vector<RemollPart> part_list;
@@ -93,6 +93,20 @@ std::vector<std::string> split(std::string full, char delimiter=','){
     }
     return seglist;
 }
+
+/**
+  Given a file, it reads the lines of files as a vector of string
+  \aram filename The path to the file
+  \return `std::vector<std::string>` of each line in file
+*/
+std::vector<std::string> readlines(std::string filename){
+    std::vector<std::string> lines;
+    std::string line; std::ifstream ifs(filename);
+    while(std::getline( ifs, line ))
+        lines.push_back(std::move(line));
+    return lines;
+}
+
 
 /**
   A handy shortcut function to check if the element elem is inside a container ( a std::vector ).
@@ -146,6 +160,17 @@ double hypot(double x, double y) { return sqrt(x*x + y*y); };
 double to_degree(double a) { return a*180/3.141592653589;}
 //! Given a angle a in degrees, returns the radian value of the angle in radians
 double to_radian(double a) { return a*3.141592653589/180;}
+
+// inverse tangent in degrees
+double atan_deg(double y, double x){
+    double rad = atan(y/x);
+    double deg = rad*180/3.141592653589;
+    if( x <0 and y > 0) deg +=  180;
+    if( x <0 and y < 0) deg -=  180;
+    return deg;
+}
+
+
 
 // ROOT Stuffs
 
@@ -255,8 +280,8 @@ void draw_polygon(std::vector<T>& x, std::vector<T>& y,int colour=kRed, int thic
 
 template<typename T>
 void draw_quad(std::vector<T>& box,int colour=kRed, int thickness=2,int style=2){
-    std::vector<float> x={box[0],box[0],box[1],box[1],box[0]};
-    std::vector<float> y={box[2],box[3],box[3],box[2],box[2],};
+    std::vector<T> x={box[0],box[0],box[1],box[1],box[0]};
+    std::vector<T> y={box[2],box[3],box[3],box[2],box[2],};
     draw_polygon(x, y, colour, thickness, style);
 }
 
