@@ -1,7 +1,23 @@
 #include <map>
 
-#include "remolltypes.hh"
-#include "RemollTree.hpp"
+#include "utils.hh"
+#include "ROOT/RDataFrame.hxx"
+
+typedef ROOT::RDataFrame RDF;
+
+typedef std::function<hit_list(hit_list&)> lookup_func;
+lookup_func identity_lookup = [](hit_list& hits)->hit_list { return hits;};
+
+void loop_tree(ROOT::RDataFrame& RD, std::function<void(RemollHit)> callback, lookup_func lookup=identity_lookup){
+    RD.Foreach([&](hit_list hits) -> void {
+        hit_list looked_up = lookup(hits);
+        for(auto hit: looked_up){
+            callback(hit);
+        }
+    },{"hit"});
+}
+
+
 
 namespace msc {
 
@@ -63,15 +79,16 @@ cut ring5_photon = ring5 + photon;
 }
 
 
-std::vector< std::vector<int> > get_counts(RemollTree& RT, std::vector<hit_cut>& cuts, std::vector<double>flpartition={-1e5,-3700,8500,14500,22200, 35000,1e6}){
+
+std::vector< std::vector<int> > get_counts(RDF& RD, std::vector<hit_cut>& cuts, std::vector<double>flpartition={-1e5,-3700,8500,14500,22200, 35000,1e6}){
     std::vector< std::vector<int> > count_cuts;
     for(size_t i = 1; i < flpartition.size(); ++i){
         std::vector<int> counts(cuts.size(),0);
         double minvz = flpartition[i-1], maxvz = flpartition[i];
         auto fill_count = [&](RemollHit hit){
-            for(size_t j = 0; j < cuts.size(); ++j) if(cuts[j](hit) and hit.vz > minvz and  hit.vz <= maxvz) ++counts[j]; 
+            for(size_t j = 0; j < cuts.size(); ++j) if(cuts[j](hit) and hit.vz > minvz and  hit.vz <= maxvz) ++counts[j];
         };
-        loop_tree(RT,fill_count);
+        loop_tree(RD,fill_count);
         count_cuts.push_back(counts);
     }
     return count_cuts;
@@ -79,13 +96,13 @@ std::vector< std::vector<int> > get_counts(RemollTree& RT, std::vector<hit_cut>&
 
 
 
-std::vector<int> get_counts(RemollTree& RT,hit_cut cut ,std::vector<double>flpartition={-1e5,-3700,8500,14500,22200, 35000,1e6}){
+std::vector<int> get_counts(RDF& RD,hit_cut cut ,std::vector<double>flpartition={-1e5,-3700,8500,14500,22200, 35000,1e6}){
     std::vector<int> counts;
     //float total = 2029;
     for(size_t i = 1; i < flpartition.size(); ++i){
         double minvz = flpartition[i-1], maxvz = flpartition[i];
         int count = 0; auto fill_count = [&](RemollHit hit){ if(cut(hit) and hit.vz > minvz and hit.vz <= maxvz) ++count; };
-        loop_tree(RT,fill_count);
+        loop_tree(RD,fill_count);
         counts.push_back(count);
     }
     return counts;
@@ -112,18 +129,18 @@ void print_counts(std::vector<int> counts,float primary=1e8 ,std::vector<double>
     for(size_t i = 1; i < flpartition.size(); ++i){
         int count = counts[i-1];
         float mf = utl::moller_fraction(count,primary)*100;
-        printf("%11.2f  %11.2f : %5d:      %8.3f  (%0.3f%%) \n",flpartition[i-1],flpartition[i],count,count/total,mf);
+        printf("%11.2f  %11.2f  %5d:      %8.3f  (%0.3f%%) \n",flpartition[i-1],flpartition[i],count,count/total,mf);
     }
     float mf = utl::moller_fraction(total,primary)*100;
     printf("--------------------------------------------------------------\n");
-    printf("%11.2f %11.2f : %5.0f:      %8.3f   (%0.3f%%) \n",flpartition[0],flpartition[flpartition.size()-1],total,total/total,mf);
+    printf("%11.2f %11.2f  %5.0f:      %8.3f   (%0.3f%%) \n",flpartition[0],flpartition[flpartition.size()-1],total,total/total,mf);
 }
 
 void print_counts(std::vector<std::vector<int>> count_cuts,std::vector<std::string>& titles,float primary=1e8 ,std::vector<double>flpartition={-1e5,-3700,8500,14500,22200, 35000,1e6}){
     std::vector<int> totv;
     int lng  = 40 + 25*titles.size();
     for(size_t i = 0; i < count_cuts[0].size(); ++i){
-        int total = 0; for(size_t j = 1; j < flpartition.size(); ++j) total += count_cuts[j-1][i]; 
+        int total = 0; for(size_t j = 1; j < flpartition.size(); ++j) total += count_cuts[j-1][i];
         totv.push_back(total);
     }
     printf("%s\n",std::string(lng,'-').c_str());
@@ -172,6 +189,7 @@ auto mother_track_selector(hit_cut cut){
 }
 
 
+
 template<typename T=RemollHit>
 std::function<bool(T)> detid_cut(int det){
     return [det](T obj)->bool { return obj.det == det; };
@@ -195,15 +213,25 @@ auto all(std::vector<hit_cut> cuts){
     };
 }
 
+hit_cut r_cut(float r1,float r2=3500){
+    return [r1,r2](RemollHit hit) { return hit.r > r1 and hit.r <= r2; };
+}
+
+hit_cut E_cut(float E1, float E2 =  12000){
+    return [E1,E2](RemollHit hit) { return hit.e > E1 and hit.e <= E2; };
+}
+
 
 } // msc::
+
+
 
 namespace hst {
 
 
 typedef std::function<double(RemollHit)> __attrib_f;
 
-TH1D* hist1d(RemollTree& RT, hit_cut cut,
+TH1D* hist1d(RDF& RD, hit_cut cut,
         __attrib_f param,
         std::vector<float> w,
         int nbins=100,
@@ -215,45 +243,79 @@ TH1D* hist1d(RemollTree& RT, hit_cut cut,
         double x = param(hit);
         if( cut(hit)  and x > w[0] and x <= w[1] ) hist->Fill(x);
     };
-    loop_tree(RT,fill_h,lookup);
+    loop_tree(RD,fill_h,lookup);
     return hist;
 }
 
-TH1D* e(RemollTree& RT, lookup_func lookup, hit_cut cut, std::vector<float> w,int nbins=100, std::string title="Energy; E[MeV]; Count"){
+TH1D* r(RDF& RD, lookup_func lookup, hit_cut cut, std::vector<float> w,int nbins=100, std::string title="Radius; r[mm]; Count"){
+    auto param = [&](RemollHit hit)->double { return hit.r; };
+    return hist1d(RD,cut,param,w,nbins,"ehist",title,lookup);
+}
+
+TH1D* r(RDF& RD, hit_cut cut, std::vector<float> w,int nbins=100, std::string title="Radius; r[mm]; Count"){
+    return r(RD,identity_lookup,cut,w,nbins,title);
+}
+
+
+TH1D* r(RDF& RD, std::vector<float> w,int nbins=100, std::string title="Radius; r[mm]; Count "){
+    return r(RD,identity_lookup,utl::__pass,w,nbins,title);
+}
+
+
+
+
+TH1D* e(RDF& RD, lookup_func lookup, hit_cut cut, std::vector<float> w,int nbins=100, std::string title="Energy; E[MeV]; Count"){
     auto param = [&](RemollHit hit)->double { return hit.e; };
-    return hist1d(RT,cut,param,w,nbins,"ehist",title,lookup);
+    return hist1d(RD,cut,param,w,nbins,"ehist",title,lookup);
 }
 
 
-TH1D* e(RemollTree& RT, hit_cut cut, std::vector<float> w,int nbins=100, std::string title="Energy; E[MeV]; Count"){
-    return e(RT,identity_lookup,cut,w,nbins,title);
+TH1D* e(RDF& RD, hit_cut cut, std::vector<float> w,int nbins=100, std::string title="Energy; E[MeV]; Count"){
+    return e(RD,identity_lookup,cut,w,nbins,title);
 }
 
 
-TH1D* e(RemollTree& RT, std::vector<float> w,int nbins=100, std::string title="Energy; E[MeV]; Count "){
-    return e(RT,identity_lookup,utl::__pass,w,nbins,title);
+TH1D* e(RDF& RD, std::vector<float> w,int nbins=100, std::string title="Energy; E[MeV]; Count "){
+    return e(RD,identity_lookup,utl::__pass,w,nbins,title);
 }
 
-TH1D* vz(RemollTree& RT, lookup_func lookup, hit_cut cut, std::vector<float> w,int nbins=100, std::string title="Vertex positions; vz[mm]; Count"){
+TH1D* vz(RDF& RD, lookup_func lookup, hit_cut cut, std::vector<float> w,int nbins=100, std::string title="Vertex positions; vz[mm]; Count"){
     auto param = [&](RemollHit hit)->double { return hit.vz; };
-    return hist1d(RT,cut,param,w,nbins,"ehist",title,lookup);
+    return hist1d(RD,cut,param,w,nbins,"vzhist",title,lookup);
 }
 
-TH1D* vz(RemollTree& RT, lookup_func lookup, std::vector<float> w,int nbins=100, std::string title="Vertex positions; vz[mm]; Count"){
-    return vz(RT,lookup,utl::__pass,w,nbins,title);
+TH1D* vz(RDF& RD, lookup_func lookup, std::vector<float> w,int nbins=100, std::string title="Vertex positions; vz[mm]; Count"){
+    return vz(RD,lookup,utl::__pass,w,nbins,title);
 }
 
-TH1D* vz(RemollTree& RT, hit_cut  cut, std::vector<float> w,int nbins=100, std::string title="Vertex positions; vz[mm]; Count"){
-    return vz(RT,identity_lookup,cut,w,nbins,title);
-}
-
-
-TH1D* vz(RemollTree& RT, std::vector<float> w,int nbins=100, std::string title="Vertex positions; vz[mm]; Count"){
-    return vz(RT,identity_lookup,utl::__pass,w,nbins,title);
+TH1D* vz(RDF& RD, hit_cut  cut, std::vector<float> w,int nbins=100, std::string title="Vertex positions; vz[mm]; Count"){
+    return vz(RD,identity_lookup,cut,w,nbins,title);
 }
 
 
-TH2D* hist2d(RemollTree& RT, hit_cut cut,
+TH1D* vz(RDF& RD, std::vector<float> w,int nbins=100, std::string title="Vertex positions; vz[mm]; Count"){
+    return vz(RD,identity_lookup,utl::__pass,w,nbins,title);
+}
+
+TH1D* angled(RDF& RD, lookup_func lookup, hit_cut cut, std::vector<float> w,int nbins=100, std::string title="Angle; angle[degree]; Count"){
+    auto angleparam = [&](RemollHit hit){ return utl::to_degree(atan(utl::hypot(hit.px,hit.py)/hit.pz)); };
+    return hist1d(RD,cut,angleparam,w,nbins,"angle",title,lookup);
+}
+
+TH1D* angled(RDF& RD, hit_cut cut, std::vector<float> w,int nbins=100, std::string title="Angle; angle[degree]; Count"){
+    return angled(RD,identity_lookup,cut,w,nbins,title);
+}
+
+TH1D* angled(RDF& RD, lookup_func lookup, std::vector<float> w,int nbins=100, std::string title="Angle; angle[degree]; Count"){
+    return angled(RD,lookup,utl::__pass,w,nbins,title);
+}
+
+TH1D* angled(RDF& RD,  std::vector<float> w,int nbins=100, std::string title="Angle; angle[degree]; Count"){
+    return angled(RD, identity_lookup, utl::__pass, w, nbins, title);
+}
+
+
+TH2D* hist2d(RDF& RD, hit_cut cut,
         __attrib_f first, __attrib_f second,
         std::vector<float> w,
         int xbins=100, int ybins=100,
@@ -265,70 +327,70 @@ TH2D* hist2d(RemollTree& RT, hit_cut cut,
         double x = first(hit), y = second(hit);
         if( cut(hit)  and x > w[0] and x <= w[1] and y > w[2] and y <= w[3] ) xyhist->Fill(x,y);
     };
-    loop_tree(RT,fill_2d,lookup);
+    loop_tree(RD,fill_2d,lookup);
     return xyhist;
 }
 
-TH2D* vzvr(RemollTree& RT, lookup_func lookup, hit_cut cut,std::vector<float> w, int nbins=100, std::string title="vr vs vz"){
+TH2D* vzvr(RDF& RD, lookup_func lookup, hit_cut cut,std::vector<float> w, int nbins=100, std::string title="vr vs vz"){
     auto first = [](RemollHit hit)->double { return hit.vz; };
     auto second = [](RemollHit hit)->double { return utl::hypot(hit.vx,hit.vy); };
-    return hist2d(RT,cut,first,second,w,nbins,nbins,"vzvrhist",title+" ;vz[mm]; vr[mm]",lookup);
+    return hist2d(RD,cut,first,second,w,nbins,nbins,"vzvrhist",title+" ;vz[mm]; vr[mm]",lookup);
 }
 
 
-TH2D* vzvr(RemollTree& RT, lookup_func lookup, std::vector<float> w, int nbins=100, std::string title="vr vs vz"){
-    return  vzvr(RT,lookup,utl::__pass,w,nbins,title);
+TH2D* vzvr(RDF& RD, lookup_func lookup, std::vector<float> w, int nbins=100, std::string title="vr vs vz"){
+    return  vzvr(RD,lookup,utl::__pass,w,nbins,title);
 }
 
 
-TH2D* vzvr(RemollTree& RT, hit_cut cut, std::vector<float> w, int nbins=100, std::string title="vr vs vz"){
-    return  vzvr(RT,identity_lookup,cut,w,nbins,title);
+TH2D* vzvr(RDF& RD, hit_cut cut, std::vector<float> w, int nbins=100, std::string title="vr vs vz"){
+    return  vzvr(RD,identity_lookup,cut,w,nbins,title);
 }
 
 
-TH2D* vzvr(RemollTree& RT, std::vector<float> w, int nbins=100, std::string title="vr vs vz"){
-    return  vzvr(RT,identity_lookup,utl::__pass,w,nbins,title);
+TH2D* vzvr(RDF& RD, std::vector<float> w, int nbins=100, std::string title="vr vs vz"){
+    return  vzvr(RD,identity_lookup,utl::__pass,w,nbins,title);
 }
 
 
-TH2D* xy(RemollTree& RT,lookup_func lookup, hit_cut cut, std::vector<float> w, int nbins=100, std::string title="y vs x"){
+TH2D* xy(RDF& RD,lookup_func lookup, hit_cut cut, std::vector<float> w, int nbins=100, std::string title="y vs x"){
     auto first = [](RemollHit hit)->double { return hit.x; };
     auto second = [](RemollHit hit)->double { return hit.y; };
-    return hist2d(RT,cut,first,second,w,nbins,nbins,"xyhist",title+"; x[mm]; y[mm]",lookup);
+    return hist2d(RD,cut,first,second,w,nbins,nbins,"xyhist",title+"; x[mm]; y[mm]",lookup);
 }
 
 
-TH2D* xy(RemollTree& RT, lookup_func lookup, std::vector<float> w, int nbins=100, std::string title="y vs x"){
-    return xy(RT,lookup,utl::__pass,w,nbins,title);
+TH2D* xy(RDF& RD, lookup_func lookup, std::vector<float> w, int nbins=100, std::string title="y vs x"){
+    return xy(RD,lookup,utl::__pass,w,nbins,title);
 }
 
 
-TH2D* xy(RemollTree& RT, hit_cut cut, std::vector<float> w, int nbins=100, std::string title="y vs x"){
-    return xy(RT,identity_lookup,cut,w,nbins,title);
+TH2D* xy(RDF& RD, hit_cut cut, std::vector<float> w, int nbins=100, std::string title="y vs x"){
+    return xy(RD,identity_lookup,cut,w,nbins,title);
 }
 
-TH2D* xy(RemollTree& RT, std::vector<float> w, int nbins=100, std::string title="y vs x"){
-    return xy(RT,identity_lookup,utl::__pass,w,nbins,title);
+TH2D* xy(RDF& RD, std::vector<float> w, int nbins=100, std::string title="y vs x"){
+    return xy(RD,identity_lookup,utl::__pass,w,nbins,title);
 }
 
-TH2D* zr(RemollTree& RT, lookup_func lookup, hit_cut cut, std::vector<float> w, int nbins=100, std::string title="r vs z"){
+TH2D* zr(RDF& RD, lookup_func lookup, hit_cut cut, std::vector<float> w, int nbins=100, std::string title="r vs z"){
     auto first = [&](RemollHit hit)->double { return hit.z; };
     auto second = [&](RemollHit hit)->double { return hit.r; };
-    return hist2d(RT,cut,first,second,w,nbins,nbins,"zrhist",title+"; z[mm]; r[mm]",lookup);
+    return hist2d(RD,cut,first,second,w,nbins,nbins,"zrhist",title+"; z[mm]; r[mm]",lookup);
 }
 
 
-TH2D* zr(RemollTree& RT, lookup_func lookup, std::vector<float> w, int nbins=100, std::string title="r vs z"){
-    return zr(RT,lookup,utl::__pass,w,nbins,title);
+TH2D* zr(RDF& RD, lookup_func lookup, std::vector<float> w, int nbins=100, std::string title="r vs z"){
+    return zr(RD,lookup,utl::__pass,w,nbins,title);
 }
 
-TH2D* zr(RemollTree& RT, hit_cut cut, std::vector<float> w, int nbins=100, std::string title="r vs z"){
-    return zr(RT,identity_lookup,cut,w,nbins,title);
+TH2D* zr(RDF& RD, hit_cut cut, std::vector<float> w, int nbins=100, std::string title="r vs z"){
+    return zr(RD,identity_lookup,cut,w,nbins,title);
 }
 
 
-TH2D* zr(RemollTree& RT, std::vector<float> w, int nbins=100, std::string title="r vs z"){
-    return zr(RT,identity_lookup,utl::__pass,w,nbins,title);
+TH2D* zr(RDF& RD, std::vector<float> w, int nbins=100, std::string title="r vs z"){
+    return zr(RD,identity_lookup,utl::__pass,w,nbins,title);
 }
 
 }; // hist::
