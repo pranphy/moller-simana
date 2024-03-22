@@ -94,18 +94,6 @@ std::vector<std::string> split(std::string full, char delimiter=','){
     return seglist;
 }
 
-/**
-  Given a file, it reads the lines of files as a vector of string
-  \aram filename The path to the file
-  \return `std::vector<std::string>` of each line in file
-*/
-std::vector<std::string> readlines(std::string filename){
-    std::vector<std::string> lines;
-    std::string line; std::ifstream ifs(filename);
-    while(std::getline( ifs, line ))
-        lines.push_back(std::move(line));
-    return lines;
-}
 
 
 /**
@@ -425,11 +413,10 @@ bool get_tree(std::string filename, TTree** T, const std::string treename="T"){
   \returns `std::vector<std::string>` of each line in file.
 */
 std::vector<std::string> readlines(std::string filename){
-    std::ifstream fileobj(filename);
-    std::string line;
     std::vector<std::string> all_lines;
+    std::string line; std::ifstream fileobj(filename);
     while(std::getline(fileobj,line)){
-        all_lines.push_back(line);
+        all_lines.push_back(std::move(line));
     }
     return all_lines;
 }
