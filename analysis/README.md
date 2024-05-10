@@ -9,6 +9,9 @@ Care is taken to make sure that this runs with `c++14` and later. Because at som
 at ifarm is compiled with c++14 so some of the `c++17` features don't compile. I have since started to use a custom root compiled with `c++17`
  so there might be some simple function that slipped that require `c++17`.
 
+ @note Going further its likely `c++17` is the minimum required standard. And compiler with `c++17` support and root compiled with this 
+ standard is also available in ifarm.
+
 
 ## Compiled library
 
@@ -22,7 +25,6 @@ gSystem->Load("~/sft/remoll/build/quick-remoll/libremoll.so")
 
 Where `libremoll.so` is the compiled library which is generated when you compile remoll and is found in the same directory as the `reroot`
 executable.
-
 
 
 ## Executing  macros
@@ -70,33 +72,35 @@ Look at  [select_subset_MD.C](https://github.com/pranphy/moller-simana/blob/mast
 
 Here is a content of that script (static) for reference.
 ```{cpp}
-#include <string>
-#include <vector>
 
-#include "RemollTree.hpp"
-#include "RemollData.hpp"
+#include "utils.hh"
+#include "ROOT/RDataFrame.hxx"
 
 bool cut(RemollHit hit){
-    return utl::md_ring_cut(hit,0) && hit.e > 1 && (hit.pid == PID::ELECTRON || hit.pid == PID::POSITRON);
+    // md_ring_cut takes hit and ring number and returns true if the hit is in that ring.
+    // epm(hit) takes a hit objects return true if its either electrom or positron e+-
+    return utl::md_ring_cut(hit,0) and hit.k > 1 and utl::cut::epm(hit);
 }
 
-
-hit_list get_subset_on_det(hit_list hits){
-    hit_list  rev_hits(0);
+hit_list get_subset_on_det(hit_list& hits) {
+    std::vector<RemollHit>  rev_hits(0);
     for(auto hit: hits) if(cut(hit)) rev_hits.push_back(hit);
     return rev_hits;
 }
 
-
 void select_subset_MD(std::string inputfile, std::string outputfile,std::string extension=".root"){
-    RemollTree RT(inputfile,"T");
+    ROOT::EnableImplicitMT();
+    ROOT::RDataFrame df("T",inputfile);
     std::vector<hit_list> selected;
-    for(RT.loop_init(); RT.next();){
-        hit_list hits_on_md = get_subset_on_det(*RT.cur_hits); // get subset on Moller Detector
+
+    df.Foreach([&](hit_list hl)->void {
+        hit_list hits_on_md = get_subset_on_det(hl); // get subset on Moller Detector
         if (hits_on_md.size()  > 0) selected.push_back(hits_on_md);
-    }
-    RemollData RD(outputfile+extension,"T",RemIO::WRITE);
-    RD.add_branch(selected,"hit",true); // true because we want to write each element as row.
+    },{"hit"});
+
+    ROOT::RDataFrame out(selected.size()); // creates new dtaframe to store skimmed data
+    int i = 0; auto d2 = out.Define("hit", [&](){ return selected.at(i++); }); // fills the df with the data
+    d2.Snapshot("T",outputfile+extension); // writes to the disk
 }
 ```
 
@@ -116,7 +120,7 @@ Selecting moller ring is something we do very very often. So there are utilities
 for selecting moller ring, so for clarity we can equivalently write this function as
 ```{cpp}
 bool cut(RemollHit hit){
-    return  utl::mid_ring_cut(hit,5) and  abs(hit.pid) == 11;
+    return  utl::mid_ring_cut(hit,5) and  utl::cut::epm(hit);
 }
 ```
 
@@ -129,7 +133,7 @@ to make the subset selection.
 
 ```{cpp}
 hit_list get_subset_on_det(hit_list hits){
-    hit_list  rev_hits(0);
+    hit_list  rev_hits;
     // For each hit in the hits array, if it passes the cut , keep it in the new hit list
     for(auto hit: hits) if(cut(hit)) rev_hits.push_back(hit);
     return rev_hits;
@@ -144,37 +148,33 @@ The function takes path to input file and writes an output file with
 the subset of events selected by the use of above two functions.
 Reading the remoll tree and looping through it, is done with RemollTree.hpp.
 
-There is \ref RemollTree.hpp, which can be used to loop through each event in the remoll output root tree "T" (there is a better way to do 
-it). Also look documentation for \ref RemollTree::loop_init() \ref RemollTree::next() and \ref RemollData::add_branch()
+~There is \ref RemollTree.hpp, which can be used to loop through each event in the remoll output root tree "T" (there is a better way to do 
+it). Also look documentation for \ref RemollTree::loop_init() \ref RemollTree::next()~ 
+Read documentation of ROOT::RDataFrame and \ref RemollData::add_branch()
 
 ```{cpp}
-#include "RemollTree.hpp"
-
 //std::string filename = "path/to/remoll/rootfile.root";
 
 void select_subset_MD(){
-    // Creates RemollTree object from the root file to read just "hit" branch.
-    RemollTree RT("path/to/input/file.root",{"hit"});
+    ROOT::EnableImplicitMT(); // optional; uses multithreading
+    
+    ROOT::RDataFrame d("T",inputfile);
+
     // This is std::vector of hit_list ( std::vector of std::vector in essence )
     // Because hist_list is hits per event. So std::vector<hist_list> is hits 
-    // over entire simulation.
+    // over entire file from the simulation.
     std::vector<hit_list> selected;
 
-
-    //initialize the loop, this loops event by event.
-    for(RT.loop_init(); RT.next();){
-        // *RT.cur_hits is equivalent to hit_list. This is all the hits per event.
-        hit_list hits_on_md = get_subset_on_det(*RT.cur_hits); // get subset on Moller Detector
+    d.Foreach([&](hit_list hl) -> void {
+        hit_list hits_on_md = get_subset_on_det(hl); // get subset on Moller Detector
         // There might be some event that dont' have any hits that pass the cut, skip them.
         if (hits_on_md.size()  > 0) selected.push_back(hits_on_md);
-    }
+    },{"hit"});
 
 
-    // Prepare to write an root output file with tree name "T".jK:w
-    RemollData RD("Outputfilename.root","T",RemIO::WRITE);
-
-    // Write the entire seelcted hits into the root file on a branch named "hit", \ref RemollData::add_branch
-    RD.add_branch(selected,"hit",true); // true because we want to write each element as row.
+    ROOT::RDataFrame out(selected.size()); // creates new dtaframe to store skimmed data
+    int i = 0; auto d2 = out.Define("hit", [&](){ return selected.at(i++); }); // fills the df with the data
+    d2.Snapshot("T",outputfile+extension); // writes to the disk
 }
 ```
 
