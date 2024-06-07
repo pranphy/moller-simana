@@ -34,7 +34,8 @@ cat > ${batch_filename} << EOF
 #SBATCH --account=halla
 #SBATCH --time=0:15:00
 #
-source /site/12gev_phys/softenv.sh 2.4
+
+source /w/halla-scshelf2102/moller12gev/pgautam/pf/sft/enableal9.sh
 
 ROOT_INCLUDE_DIR="analysis/script:\${ROOT_INCLUDE_DIRJ}"
 
