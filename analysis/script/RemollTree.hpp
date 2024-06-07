@@ -100,8 +100,8 @@ bool RemollTree::next(){
 }
 
 //hit_list identity(hit_list hits) { return hits; }
-typedef std::function<hit_list(hit_list)> lookup_func;
-lookup_func identity_lookup = [](hit_list hits)->hit_list { return hits;};
+typedef std::function<hit_list(hit_list&)> lookup_func;
+lookup_func identity_lookup = [](hit_list& hits)->hit_list { return hits;};
 
 /**
    Basically I ddidn't want to rewrite  this loop over and  over again. What I found was, I was looking up
