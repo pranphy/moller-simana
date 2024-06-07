@@ -3,7 +3,7 @@
 // author : Prakash [प्रकाश]
 // date   : 2023-07-21
 
-#include "RemollTree.hpp"
+#include "utils.hh"
 #include "ROOT/RDataFrame.hxx"
 
 static const std::string example_file ="/mnt/stg/data/remoll/sim/output/beam-col2-cfg08/primary/skim/merged/events-at-least-1-hit-md.root";
@@ -21,6 +21,7 @@ const static Boxes components{ // for each components {vz0, vz1, r0, r1}
     {"Collimator 2",            {625.0, 849,5,120}},
     {"Two bounce shield",       {924, 3199.9, 20,65}}, // For real.
     {"Collimator 4",            {3200, 3350, 0,195}},
+    {"Bellows 3",               {4250, 4700, 0,420}},
     {"Vaccum Enclosure US End", {4600,4900, 310, 350}}, // Ryan was looking at assymetry here.
     {"Photon Scraper",          {4701.00,4819.00,20.0,155.0}},
     {"Belly Plates 1",          {4900, 5942,32,57}},
@@ -113,7 +114,8 @@ void fill_hist(hit_list hl, TH1D* histe, TH1D* histp, TH2D* exc){
                 break;
             }
         }
-        if(!inside and utl::cut::ring5_epm_E1(hit) and hit.pz > 0) exc->Fill(vz,vr);
+        //if(!inside and utl::cut::ring5_epm_E1(hit) and hit.pz > 0) exc->Fill(vz,vr);
+        if(utl::cut::ring5_epm_E1(hit) and hit.pz > 0) exc->Fill(vz,vr);
     }
 }
 
