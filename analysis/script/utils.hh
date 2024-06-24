@@ -336,6 +336,7 @@ namespace cut{
     bool photon(RemollHit hit) {return photon_cut(hit); }
     //! Returns true if it hits ring 5 of Main detector and has energy > 1MeV and also is a photon.
     bool ring5_photon_E1(RemollHit hit) {return photon_cut(hit) and md_ring_cut(hit,5) and E1(hit); }
+    auto detid = [](int det){ return [det](RemollHit hit)->bool { return hit.det == det; }; };
 }
 
 bool __pass(RemollHit) { return true; }
