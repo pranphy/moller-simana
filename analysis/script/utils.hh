@@ -94,6 +94,11 @@ std::vector<std::string> split(std::string full, char delimiter=','){
     return seglist;
 }
 
+std::string get_extension(std::string str){
+    auto npos = str.find_last_of('.');
+    return npos == str.npos ? "" : str.substr(npos+1,str.size());
+}
+
 
 
 /**
