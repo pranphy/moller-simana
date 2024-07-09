@@ -89,7 +89,7 @@ void count_box(RemollHit hit, const Boxes& boxes, Hist2Ds& hists){
 
 void save_hists(Hist2Ds& hists, const std::string& id, const std::string &opfile,float total=1e9){
     int i = 0;
-    std::cout<<"Name, Count, z-pos, Moller Fraction"<<std::endl;
+    std::cout<<"Name, z-pos, Count, Moller Fraction"<<std::endl;
     for(auto hist: hists) {
         int count = hist.second->Integral();
         std::string name = hist.first;
@@ -119,9 +119,22 @@ void fill_hist(hit_list hl, TH1D* histe, TH1D* histp, TH2D* exc){
     }
 }
 
-void make_all_plots(const std::string& filename, const std::string& id, const std::string& opfile,float total=1e9){
+
+
+void make_all_plots(const std::string& filename, const std::string& id, const std::string& opfile,float total=1e8){
     ROOT::EnableImplicitMT();
-    ROOT::RDataFrame d("T",filename);
+
+    ROOT::RDataFrame d(0);
+    bool count = false;
+    if(utl::get_extension(filename) == "txt"){
+        auto files = utl::readlines(filename);
+        count = true; total = 0;
+        //std::cout<<"Reading: "<<files.size()<<" files"<<std::endl;
+        d = ROOT::RDataFrame{"T",files};
+    } else {
+        //std::cout<<"Reading one root file"<<filename<<std::endl;
+        d = ROOT::RDataFrame{"T",filename};
+    }
     Hist2Ds histmap;
 
     auto the = new TH1D("vzhiste","All background $e^{\\pm}$; vz[mm]; count",200,0, 25000);
@@ -129,10 +142,14 @@ void make_all_plots(const std::string& filename, const std::string& id, const st
     auto exc = new TH2D("vzvrpl","All background; vz[mm]; vr[mm]", 200,0,25000.0,200, 0.0,1450.0);
     init_histmap(components, histmap);
 
+
+
     d.Foreach([&](hit_list hl)->void {
+        if(count) total += 1;
         fill_hist(hl, the,thp, exc);
         count_boxx(hl,components,histmap);
     },{"hit"});
+    std::cout<<"I counted "<<total<<std::endl;
 
     save_hists(histmap,id,opfile,total);
     utl::save(the,"vz-for-epm",id+"/plot1d",opfile);
