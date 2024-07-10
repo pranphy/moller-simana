@@ -10,6 +10,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <set>
 #include <functional>
 
 
@@ -341,13 +342,38 @@ namespace cut{
     bool photon(RemollHit hit) {return photon_cut(hit); }
     //! Returns true if it hits ring 5 of Main detector and has energy > 1MeV and also is a photon.
     bool ring5_photon_E1(RemollHit hit) {return photon_cut(hit) and md_ring_cut(hit,5) and E1(hit); }
-    auto detid = [](int det){ return [det](RemollHit hit)->bool { return hit.det == det; }; };
-}
+    auto det = [](int det){ return [det](RemollHit hit)->bool { return hit.det == det; }; };
+
+    hit_cut r(float r1,float r2=3500){
+        return [r1,r2](RemollHit hit) { return hit.r > r1 and hit.r <= r2; };
+    };
+
+    hit_cut E(float E1, float E2 =  12000){
+        return [E1,E2](RemollHit hit) { return hit.e > E1 and hit.e <= E2; };
+    };
+
+} // cut::
 
 bool __pass(RemollHit) { return true; }
 
 typedef std::function<double(RemollHit)> __remhit_attrib_d;
 auto __attrib_trid = [](RemollHit hit)->double { return hit.trid; };
+
+/**
+  Takes a vector of hit_cut and returns a hit_cut such that it
+  only evaluates to true if each of the cut in the vector evaluates
+  to true
+  \param cuts std::vector<hit_cut>, the list of cuts to and
+  \return lambda that evaluates to true if all the cuts pass when passed hit.
+*/
+auto all(std::vector<hit_cut>&& cuts){
+    return [cuts](RemollHit hit) ->bool {
+        bool anded = true;
+        for(auto cut: cuts) anded = cut(hit) and anded;
+        return anded;
+    };
+}
+
 
 /**
   Given hit array, this function looks first for hits that pass the first cut `cut_s`. For those hits,
@@ -373,6 +399,59 @@ hit_list select_mother_tracks(hit_list hits, std::function<bool(RemollHit)> cut_
     __remhit_attrib_d param = [](RemollHit hit)->double { return hit.mtrid; };
     return select_tracks(hits,cut_s,cut_d,param);
 }
+
+
+bool __get_det_hit(hit_list hits, int trid, hit_cut cut, RemollHit& dethit){
+    for(auto hit : hits) if(cut(hit) and hit.trid == trid) { dethit = hit; return true; }
+    return false;
+}
+
+/**
+   Given a list of cuts and a list of hits, looks up those specific tracks that pass all the cuts.
+   It returns a vector of all those hit_list where each hit_list is the hit corresponding to each
+   cut in the cut list. 
+   \param hits The hits to look up from, this is typically for an event
+   \param cuts The list of cut function, to select those hits that pass
+   \returns a matrix of hits corresponding to the cuts
+*/
+std::vector<hit_list> lookup_tracks(hit_list hits, std::vector<hit_cut> cuts){
+    std::set<int> trids; for(auto hit: hits) if(cuts[0](hit)) trids.insert(hit.trid);
+    std::vector<hit_list> trackhits;
+    for(int trid : trids){
+        bool all = true; hit_list cuthits;
+        for(auto cut : cuts){
+            RemollHit tmphit;
+            all = all and __get_det_hit(hits, trid, cut, tmphit);
+            cuthits.push_back(tmphit);
+        }
+        if(all) trackhits.push_back(cuthits);
+    }
+    return trackhits;
+}
+
+/**
+  This function takes 2 detector ids, (and a basecut) and returns a lambda.
+  The lambda will take a hit_list and a TH2* pointer. Now it will loop through the
+  hits fills the histogram with hit.r at det1 vs hit.r at det2 with the same trackid
+  and passing the cut passed as the third parameter.
+  \param det1 The detid of first detector
+  \param det2 The detid of second detector
+  \param basecut The cut that each of the tracks has to pass (usually utl::cut::epm).
+  \returns lambda(hit_list, TH2*) where TH2* will be filled with hit.r at det1 vs hit.r at det2
+*/
+auto rr_correlate(int det1, int det2, hit_cut basecut = utl::cut::epm){
+    return [basecut,det1,det2](hit_list& hl, TH2D* hist)->void{
+        std::vector<hit_cut> cuts{basecut};
+        std::vector<int> dets = {det1,det2}; for(auto detid : dets) cuts.push_back(cut::det(detid));
+        std::vector<hit_list> those_tracks = lookup_tracks(hl, cuts);
+        for(hit_list& cuthits : those_tracks){
+            RemollHit h0 = cuthits[1], h1 = cuthits[2];
+            hist->Fill(h0.r, h1.r);
+        }
+    };
+}
+
+
 
 
 template <typename T>
