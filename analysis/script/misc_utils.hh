@@ -202,65 +202,6 @@ auto pid_cut(int pid){
     return [pid](T obj)->bool { return obj.pid == pid; };
 }
 
-auto all(std::vector<hit_cut> cuts){
-    return [cuts](RemollHit hit) ->bool {
-        bool anded = true;
-        for(auto cut: cuts) anded = cut(hit) and anded;
-        return anded;
-    };
-}
-
-hit_cut r_cut(float r1,float r2=3500){
-    return [r1,r2](RemollHit hit) { return hit.r > r1 and hit.r <= r2; };
-}
-
-hit_cut E_cut(float E1, float E2 =  12000){
-    return [E1,E2](RemollHit hit) { return hit.e > E1 and hit.e <= E2; };
-}
-
-
-bool __get_det_hit(hit_list hits, int trid, hit_cut cut, RemollHit& dethit){
-    for(auto hit : hits) if(cut(hit) and hit.trid == trid) { dethit = hit; return true; }
-    return false;
-}
-
-/**
-   Given a list of cuts and a list of hits, looks up those specific tracks that pass all the cuts.
-   It returns a vector of all those hit_list where each hit_list is the hit corresponding to each
-   cut in the cut list. 
-   \param hits The hits to look up from, this is typically for an event
-   \param cuts The list of cut function, to select those hits that pass
-   \returns a matrix of hits corresponding to the cuts
-*/
-std::vector<hit_list> lookup_tracks(hit_list hits, std::vector<hit_cut> cuts){
-    std::set<int> trids; for(auto hit: hits) if(cuts[0](hit)) trids.insert(hit.trid);
-    std::vector<hit_list> trackhits;
-    for(int trid : trids){
-        bool all = true; hit_list cuthits;
-        for(auto cut : cuts){
-            RemollHit tmphit;
-            all = all and __get_det_hit(hits, trid, cut, tmphit);
-            cuthits.push_back(tmphit);
-        }
-        if(all) trackhits.push_back(cuthits);
-    }
-    return trackhits;
-}
-
-auto rr_correlate(int det1, int det2, hit_cut basecut = utl::cut::epm){
-    return [basecut,det1,det2](hit_list& hl, TH2D* hist)->void{
-        std::vector<hit_cut> cuts{basecut};
-        std::vector<int> dets = {det1,det2}; for(auto detid : dets) cuts.push_back(detid_cut(detid));
-        std::vector<hit_list> those_tracks = lookup_tracks(hl, cuts);
-        for(hit_list& cuthits : those_tracks){
-            RemollHit h0 = cuthits[1], h1 = cuthits[2];
-            hist->Fill(h0.r, h1.r);
-        }
-    };
-}
-
-
-
 } // msc::
 
 
@@ -499,11 +440,13 @@ struct hist{
     void fill(RemollHit hit){
         if(dim == 1){
             //TH1D* hist = (TH1D*) obj;
-            h1->Fill(params[0](hit));
+            auto val = params[0](hit);
+            if(val > bins[1] and val <= bins[2]) h1->Fill(val);
         }
         else if (dim == 2){
             //TH2D* hist = (TH2D*) obj;
-            h2->Fill(params[0](hit), params[1](hit));
+            auto val0 = params[0](hit); auto val1 = params[1](hit);
+            if(val0 > bins[1] and val0 <= bins[2] and val1 > bins[4] and val1 <= bins[5]) h2->Fill(val0,val1);
         }
     }
     void save(std::string dir, std::string filename){
