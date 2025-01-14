@@ -12,6 +12,7 @@
 #include <vector>
 #include <set>
 #include <functional>
+#include <utility>
 
 
 #include "TFile.h"
@@ -24,15 +25,15 @@
 #include "TPolyLine.h"
 #include "TArc.h"
 
-/** The type of `hit` object stored in the remoll simulation root file is 
-    `remollGenericDetectorHit_t` which is a bit lot to remember and type. So I 
+/** The type of `hit` object stored in the remoll simulation root file is
+    `remollGenericDetectorHit_t` which is a bit lot to remember and type. So I
     typedefed this to RemollHit which is easy to remember
 
     All the remoll types are defined in remolltypes.hh file.
 */
 typedef remollGenericDetectorHit_t RemollHit;
 
-/** 
+/**
   Frequently we need a `std::vector` of \ref RemollHit. This is just an
   alias to std::vector<RemollHit> which in turn is an alias so it effect
   this is  std::vector<remollGenericDetectorHit_t> which would be a handful
@@ -42,10 +43,8 @@ typedef std::vector<RemollHit> hit_list;
 typedef std::function<bool(RemollHit)> hitfunc;
 typedef std::function<bool(RemollHit)> hit_cut;
 
-
-
-/** The type of `ipart` object stored in the remoll simulation root file is 
-    `remollEventParticle_t` which is a bit lot to remember and type. So I 
+/** The type of `ipart` object stored in the remoll simulation root file is
+    `remollEventParticle_t` which is a bit lot to remember and type. So I
     typedefed this to  @ref `RemollPart` which is easy to remember
 
     All the remoll types are defined in remolltypes.hh file.
@@ -113,6 +112,22 @@ bool contains(std::vector<T>& container,const T& elem) {
     return container.end() != std::find(container.begin(),container.end(),elem);
 }
 
+template <typename T>
+std::vector<T> logspace(int min, int max, int bins, T offset){
+    T bw = (1.0*max - min) / bins;
+    std::vector<T> vals(bins+1);
+    for(int i = 0; i <= bins; ++i) vals.at(i) = offset + std::pow(10, i*bw + min);
+    return vals;
+}
+
+template <typename T>
+std::vector<T> logspace(T min, T max, int bins){
+    T xe = std::log10(max/min); T bw = xe / bins;
+    std::vector<T> vals(bins+1);
+    for(int i = 0; i <= bins; ++i) vals.at(i) =  min  * std::pow(10, i*bw);
+    return vals;
+}
+
 
 template <typename T>
 bool is_inside_pgm(const T& x, const T& y,std::vector<T> box){
@@ -132,6 +147,17 @@ bool is_inside(const T& x, const T& y,std::vector<T> box){
         return (x > box[0] and x <= box[1] and y > box[2] and y <= box[3]); //box = [x0,x1, y0, y1]
     else
         return is_inside_pgm(x,y, box);
+}
+
+/**
+  Merges std::vector of type <T> into a single std::vector.
+*/
+template <typename T, typename... Vectors>
+std::vector<T> merge(Vectors&&... vecs) {
+    std::vector<T> result;
+    result.reserve((vecs.size() + ...));
+    (result.insert(result.end(), std::make_move_iterator(vecs.begin()), std::make_move_iterator(vecs.end())), ...);
+    return result;
 }
 
 
@@ -162,6 +188,29 @@ double atan_deg(double y, double x){
     if( x <0 and y > 0) deg +=  180;
     if( x <0 and y < 0) deg -=  180;
     return deg;
+}
+
+double neg_deg(double a){
+    int sign =  a < 0 ? -1 : 1;
+    return -sign*(180.0-std::abs(a));
+}
+
+/**
+  Returns the difference between two angles in degrees
+    \param a the first angle
+    \param b the second angle
+  This is not as simple as it sounds because of the fact that
+  it wraps around from -180 to 180 degrees.
+*/
+double diff_deg(double a, double b){
+    double d1 = std::abs(a - b);
+    double d2 = std::abs(utl::neg_deg(a) - utl::neg_deg(b));
+    return std::min(d1,d2);
+}
+
+// inverse tangent in degrees
+double atan_rad(double y, double x){
+    return to_radian(atan_deg(y,x));
 }
 
 
@@ -299,7 +348,7 @@ void show_text(std::string text, Double_t normx, Double_t normy, int colour=kRed
 // Remoll/Moller Specific
 
 /**
-  For a given hit, this function returns true if that hit falls on 
+  For a given hit, this function returns true if that hit falls on
   moller detector (DETID::MD=28) and on ring given as the second parameter.
   The bounds of ring are taken from [DocDB 896](https://moller.jlab.org/cgi-bin/DocDB/private/ShowDocument?docid=896)
   There is a offset parameter here, which I was told was the updated ring values.
@@ -334,7 +383,7 @@ namespace cut{
     bool md_ring(RemollHit hit,int ring)  { return md_ring_cut(hit,ring); };
     bool E1(RemollHit hit) { return hit.e > 1; }
     //! Returns true if the hit pid is electron or positron.
-    bool epm(RemollHit hit) { return epm_cut(hit); } 
+    bool epm(RemollHit hit) { return epm_cut(hit); }
     bool ring5_epm(RemollHit hit){ return epm_cut(hit) and md_ring_cut(hit,5); }
     bool ring5_epm_E1(RemollHit hit){ return ring5_epm(hit) && E1(hit); }
     bool ring0_epm_E1(RemollHit hit){ return md_ring(hit,0) && epm(hit) && E1(hit); }
@@ -342,6 +391,7 @@ namespace cut{
     bool photon(RemollHit hit) {return photon_cut(hit); }
     //! Returns true if it hits ring 5 of Main detector and has energy > 1MeV and also is a photon.
     bool ring5_photon_E1(RemollHit hit) {return photon_cut(hit) and md_ring_cut(hit,5) and E1(hit); }
+    bool ring0_photon_E1(RemollHit hit) {return photon_cut(hit) and md_ring_cut(hit,0) and E1(hit); }
     auto det = [](int det){ return [det](RemollHit hit)->bool { return hit.det == det; }; };
 
     hit_cut r(float r1,float r2=3500){
@@ -409,7 +459,7 @@ bool __get_det_hit(hit_list hits, int trid, hit_cut cut, RemollHit& dethit){
 /**
    Given a list of cuts and a list of hits, looks up those specific tracks that pass all the cuts.
    It returns a vector of all those hit_list where each hit_list is the hit corresponding to each
-   cut in the cut list. 
+   cut in the cut list.
    \param hits The hits to look up from, this is typically for an event
    \param cuts The list of cut function, to select those hits that pass
    \returns a matrix of hits corresponding to the cuts
@@ -533,7 +583,7 @@ bool has_proton(hit_list hits) { return has_pid(hits,PID::PROTON) ; }
 /**
   Assuming that there are 1 Moller events per 3300 beam events,
   this function calculates the rate of moller electron in the detector
-  if we provide the number of electron detected for a given number of primary 
+  if we provide the number of electron detected for a given number of primary
   simulation. The factor 1/3000 is for the Moller Detector, so it makes sense to nly
   pass the number of electron detected in the MD.
   \param count The number of electron detected in the Moller Detector (28)
@@ -547,7 +597,7 @@ float moller_fraction(float count, float primary){
 }
 
 /**
-  Basically same as \ref moller_fraction function but also accepts the number of secondary simulated 
+  Basically same as \ref moller_fraction function but also accepts the number of secondary simulated
   and the number of skim events used to run the secondary.
   \param count The number or flectrons detected in the MD
   \param secondary The number of events simulated for the secondary
