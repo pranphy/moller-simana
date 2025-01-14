@@ -1,6 +1,7 @@
 #include "utils.hh"
 #include "ROOT/RDataFrame.hxx"
 
+
 typedef std::function<hit_list(hit_list&)> lookup_func;
 lookup_func identity_lookup = [](hit_list& hits)->hit_list { return hits;};
 
@@ -213,9 +214,9 @@ typedef std::function<double(RemollHit)> __attrib_f;
 /**
   ! Not intended to be used by itself but by other functions defined later.
 
-  Makes 1d histogram and populates them and returns a TH1D object. It accepts 
-  cut function and the parameter of the hit object to use and the range to 
-  make histogram. It has provision for lookup function which can be used 
+  Makes 1d histogram and populates them and returns a TH1D object. It accepts
+  cut function and the parameter of the hit object to use and the range to
+  make histogram. It has provision for lookup function which can be used
   to do things like m/track lookup etc.
   */
 TH1D* hist1d(ROOT::RDataFrame& RD, hit_cut cut,
@@ -383,20 +384,39 @@ struct hist;
 typedef std::function<void(hit_list&, TH2D*)> __cbackf;
 //typedef void(*)(hit_list&, hist&) __cbackf;
 
+void fill(ROOT::RDataFrame&, std::vector<hist>&&);
+
 struct hist{
     std::string name;
     lookup_func lookup;
     hit_cut cut;
-    std::vector<__attrib_f> params;
     std::string title;
+    std::vector<__attrib_f> params;
     std::vector<float> bins;
     TObject* obj;
     TH1D* h1; TH2D* h2;
     int dim;
     __cbackf callback; bool calls;
 
+    hist(int dim, TObject* h,hit_cut cut, std::vector<__attrib_f> params, lookup_func lookup=identity_lookup)
+        :lookup(lookup), cut(cut), params(params), bins({}), dim(dim),calls(false)
+    {
+        if(dim == 1) {
+            h1 = (TH1D*) h; name = std::string(h1->GetName());
+            bins = { float(h1->GetXaxis()->GetNbins()),float(h1->GetXaxis()->GetXmin()),float(h1->GetXaxis()->GetXmax()) };
+
+        } else if(dim == 2) {
+            h2 = (TH2D*) h; name = std::string(h2->GetName());
+            bins = {
+                float(h2->GetXaxis()->GetNbins()), float(h2->GetXaxis()->GetXmin()), float(h2->GetXaxis()->GetXmax()),
+                float(h2->GetYaxis()->GetNbins()), float(h2->GetYaxis()->GetXmin()), float(h2->GetYaxis()->GetXmax())
+            };
+        }
+    }
+
+
     hist(std::string name, __cbackf callback, std::string title,  std::vector<float> bins)
-        :name(name), callback(callback), title(title), bins(bins), calls(true)
+        :name(name), title(title), bins(bins), callback(callback),  calls(true)
     {
         dim = 2;
         init_hist();
@@ -431,17 +451,21 @@ struct hist{
         init_hist();
     }
     void init_hist(){
-        if(dim == 1)
-            h1 = new TH1D(name.c_str(),title.c_str(), bins[0],bins[1],bins[2]);
-
-        if(dim == 2)
+        if(dim == 1){
+            if (bins.size() > 6){ // well actually this is bit of a hack, but should work
+                h1 = new TH1D(name.c_str(),title.c_str(),bins.size()-1, bins.data()); // for explicit bins passed
+            }else{
+                h1 = new TH1D(name.c_str(),title.c_str(), bins[0],bins[1],bins[2]);
+            }
+        } else if(dim == 2){
             h2 = new TH2D(name.c_str(),title.c_str(), bins[0],bins[1],bins[2],bins[3],bins[4],bins[5]);
+        }
     }
-    void fill(RemollHit hit){
+    void fillit(RemollHit hit){
         if(dim == 1){
             //TH1D* hist = (TH1D*) obj;
             auto val = params[0](hit);
-            if(val > bins[1] and val <= bins[2]) h1->Fill(val);
+            if(val > h1->GetXaxis()->GetXmin() and val <= h1->GetXaxis()->GetXmax()) h1->Fill(val);
         }
         else if (dim == 2){
             //TH2D* hist = (TH2D*) obj;
@@ -449,6 +473,12 @@ struct hist{
             if(val0 > bins[1] and val0 <= bins[2] and val1 > bins[4] and val1 <= bins[5]) h2->Fill(val0,val1);
         }
     }
+    hist yscale(double scale){
+        if(dim == 1) h1->Scale(scale);
+        else if(dim == 2) h2->Scale(scale);
+        return *this;
+    }
+
     void save(std::string dir, std::string filename){
         if(dim == 1){
             //TH1D* hist = (TH1D*) obj;
@@ -461,8 +491,15 @@ struct hist{
         }
     }
 
-    void draw(std::string opt=""){
+   void draw(std::string opt=""){
+        if(dim == 1 and opt=="") opt="hist";
+        if(dim == 2 and opt=="") opt="colz";
         if(dim == 1) h1->Draw(opt.c_str()); else h2->Draw(opt.c_str());
+    }
+
+    hist loop(ROOT::RDataFrame& df){
+        fill(df,{*this});
+        return *this;
     }
 
 }; // hist
@@ -475,12 +512,16 @@ void fill(ROOT::RDataFrame& df, std::vector<hist>& histograms){
             } else {
                 hit_list looked_up = hist.lookup(hits);
                 for(auto hit: looked_up){
-                    if(hist.cut(hit)) hist.fill(hit);
+                    if(hist.cut(hit)) hist.fillit(hit);
                 }
             }
         }
     };
     df.Foreach(fill_hists,{"hit"});
+}
+
+void fill(ROOT::RDataFrame& df,std::vector<hist>&& histograms){
+    fill(df,histograms);
 }
 
 void save(std::vector<hst::hist>& hists,std::string dir, std::string filename){
@@ -498,8 +539,11 @@ namespace att{
     hst::__attrib_f z   = [](RemollHit hit){ return hit.z; };
     hst::__attrib_f r   = [](RemollHit hit){ return hit.r; };
     hst::__attrib_f e   = [](RemollHit hit){ return hit.e; };
+    hst::__attrib_f edep= [](RemollHit hit){ return hit.edep; };
     hst::__attrib_f phi = [](RemollHit hit){ return utl::atan_deg(hit.y,hit.x); };
-    hst::__attrib_f th  = [](RemollHit hit){ return utl::atan_deg(std::hypot(hit.px,hit.py),hit.pz);};
+    hst::__attrib_f th  = [](RemollHit hit){ return utl::atan_deg(std::hypot(hit.x,hit.y),hit.z);};
+    hst::__attrib_f pphi = [](RemollHit hit){ return utl::atan_deg(hit.py,hit.px); };
+    hst::__attrib_f pth  = [](RemollHit hit){ return utl::atan_deg(std::hypot(hit.px,hit.py),hit.pz);};
 
     hst::__attrib_f vx = [](RemollHit hit){ return hit.vx; };
     hst::__attrib_f vy = [](RemollHit hit){ return hit.vy; };
