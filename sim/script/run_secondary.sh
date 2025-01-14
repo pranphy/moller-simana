@@ -5,35 +5,58 @@
 # author : Prakash [प्रकाश]
 # date   : 2022-11-18 13:50
 
+echo " Running this"
+
 
 mydir="/w/halla-scshelf2102/moller12gev/pgautam"
-work_dir="${mydir}/pf/simana/sim"
+work_dir="${mydir}/pf/simana/remoll/sim"
 output="${work_dir}/output"
-sourcename="add-kryptonite"
+
+sourcename="develop-remoll"
 #sourcename="ryan-remoll"
 source_dir="${mydir}/pf/sft/remoll/${sourcename}"
+map_directory="${mydir}/pf/sft/remoll/data/field_maps"
 
-branch="lintel-update"
+branch="al9stepkill"
 #branch="develop-ryan"
 remoll="../build/${branch}/remoll" # relative to geometry
 generator="beam"
 
 echo "source_dir is ${source_dir}"
-nrun=200
-evt_per_run=10000
-dets=(28 61 62 63 64 65 66 67 69 72 74 76 77 80 81 815 816 817)
+nrun=100
+evt_per_run=100000
+#dets=(28 44 45 48 49 58 60 61 62 63 64 65 66 67 69 72 74 76 77 80 81 815 816 817 818)
+dets=(28)
 
-
-primary_id="real-assymetric-202303101758"
+primary_id="beam-diffvacuum-cfg03"
 sim_id="${primary_id}"
-pors="secondary" # primary or secondary
-skimmed_primary_d="${output}/${primary_id}/primary/skim/merged/skim-around-coll-6a-202303141809.root"
+
+skimmed_primary_d="${output}/${primary_id}/primary/skim/right-diff-4740-photon-inside-cylinder-90-45.root"
 
 skimmed_primary=${1:-"${skimmed_primary_d}"}
+angid=${2:-"photon-90-45"}
+
+#pors="secondary/NO6A" # primary or secondary
+pors="secondary/${angid}" # primary or secondary
+sdetid=4740
 
 
-function write_macro()
-{
+#/remoll/addfield ${map_directory}/V2U.1a.50cm.parallel.txt
+#/remoll/addfield ${map_directory}/V2DSg.9.75cm.parallel.txt
+#/remoll/addfield ${map_directory}/subcoil_2_3_3mm_real_asymmetric.txt
+#/remoll/addfield ${map_directory}/V2U.1a.50cm.parallel.real_asymmetric.txt
+comment="""
+Secondary sim with the selecetd events ans vacuum beam pipe. The acceptance angle wre 90 for phidiff and 45 for p_theta.
+These are photons only.
+"""
+
+echo "Here"
+
+#/remoll/addfield ${map_directory}/V2U.1a.50cm.parallel.txt
+#/remoll/addfield ${map_directory}/V2DSg.9.75cm.parallel.txt
+## @fn
+function write_macro() {
+    ## Defines a function to write a macro
     macro_filename=${1}
     no_of_events=${2:-10000}
     output_name=${3}
@@ -48,15 +71,17 @@ cat > ${macro_filename} << EOF
 /run/initialize
 /remoll/printgeometry true
 
-/remoll/addfield map_directory/subcoil_2_3_3mm_real_asymmetric.txt
-/remoll/addfield map_directory/V2U.1a.50cm.parallel.real_asymmetric.txt
+/remoll/addfield ${map_directory}/subcoil_2_3_3mm_real_asymmetric.txt
+/remoll/addfield ${map_directory}/V2U.1a.50cm.parallel.real_asymmetric.txt
+
 
 /remoll/evgen/set external
 /remoll/evgen/external/file ${skimmed_primary}
-/remoll/evgen/external/detid 66
-/remoll/evgen/external/detid 69
+/remoll/evgen/external/detid ${sdetid}
 /remoll/evgen/external/zOffset 0.001
 
+/remoll/step/killebelow 1 # MeV
+/remoll/step/killafterz 23000 # mm
 
 /remoll/SD/disable_all
 EOF
@@ -93,6 +118,8 @@ function write_sbatch()
 
     cmd="${remoll} macros/${macro_name}"
 
+
+
 cat > ${batch_filename} << EOF
 #!/usr/bin/env bash
 #SBATCH --ntasks=1
@@ -102,19 +129,18 @@ cat > ${batch_filename} << EOF
 #SBATCH --mem-per-cpu=1000
 #SBATCH --partition=production
 #SBATCH --account=halla
-#SBATCH --time=03:20:00
-#SBATCH --exclude=farm19104,farm19105,farm19106,farm19107,farm1996,farm19101
-#
-source /site/12gev_phys/softenv.sh 2.4
+#SBATCH --time=00:50:00
 
-printf 'started'
+source /w/halla-scshelf2102/moller12gev/pgautam/pf/sft/enableal9.sh
+
+printf 'started: '
 date
 
 cd ${source_dir}
 
 ${cmd}
 
-printf 'ended'
+printf 'ended: '
 date
 
 EOF
@@ -122,6 +148,7 @@ EOF
 }
 
 # Start execution from here
+echo "Starting execution"
 
 macro_dir="${source_dir}/macros/${sim_id}/${pors}"
 batch_dir="${work_dir}/jobs/${sim_id}/${pors}"
@@ -132,6 +159,18 @@ mkdir -p ${output_dir}
 mkdir -p ${macro_dir}
 mkdir -p ${batch_dir}
 mkdir -p ${log_dir}
+
+cat > "${output_dir}/info.md" << EOF
+Date: $(date +%Y-%m-%d-%H:%M:%S)
+remoll Path: ${remoll}
+Event Per Run: ${evt_per_run}
+Active detectors:
+    Boundary: ${dets[@]}
+    Full: ${detf[@]}
+${comment}
+EOF
+
+
 
 for ((i=1; i <= $nrun; i++))
 do
@@ -148,6 +187,5 @@ do
     echo ""
     sbatch ${batch_path}
     echo ""
-    sleep 1
 done
 
